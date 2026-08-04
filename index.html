@@ -4,12 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Meridian FX Pro</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Meridian FX">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; background: #000000; overflow: hidden; }
   body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; display: flex; flex-direction: column; }
 
-  /* TOP BAR */
   #topbar {
     height: 52px;
     background: #000000;
@@ -41,12 +47,10 @@
   #account-switch button.active.demo { background: #2962ff; color: #fff; }
   #account-switch button.active.live { background: #d4af37; color: #000; }
 
-  /* MAIN AREA */
   #main-content { flex: 1; overflow: hidden; position: relative; }
   .tab-panel { display: none; height: 100%; width: 100%; }
   .tab-panel.active { display: block; }
 
-  /* CHART TAB */
   #tab-chart { display: none; flex-direction: column; }
   #tab-chart.active { display: flex; }
   #chart-container { flex: 1; width: 100%; min-height: 0; }
@@ -90,7 +94,6 @@
     font-size: 13px;
   }
 
-  /* GENERIC TABS (Positions / Orders / History / Account) */
   .panel-header {
     height: 42px;
     display: flex;
@@ -139,7 +142,6 @@
   .account-row span.label { color: #777; }
   .account-row span.value { color: #fff; font-weight: 600; }
 
-  /* BOTTOM NAV */
   #bottom-nav {
     height: 60px;
     background: #000000;
@@ -176,7 +178,6 @@
 
 <div id="main-content">
 
-  <!-- CHART TAB -->
   <div id="tab-chart" class="tab-panel active">
     <div id="chart-container">
       <div id="tradingview_chart"></div>
@@ -192,7 +193,6 @@
     </div>
   </div>
 
-  <!-- POSITIONS TAB -->
   <div id="tab-positions" class="tab-panel">
     <div class="panel-header"><span>POSITIONS</span><span id="positions-count">0</span></div>
     <div class="panel-body">
@@ -203,7 +203,6 @@
     </div>
   </div>
 
-  <!-- ORDERS TAB -->
   <div id="tab-orders" class="tab-panel">
     <div class="panel-header"><span>PENDING ORDERS</span><span id="orders-count">0</span></div>
     <div class="panel-body">
@@ -214,7 +213,6 @@
     </div>
   </div>
 
-  <!-- HISTORY TAB -->
   <div id="tab-history" class="tab-panel">
     <div class="panel-header"><span>HISTORY</span></div>
     <div class="panel-body">
@@ -225,7 +223,6 @@
     </div>
   </div>
 
-  <!-- ACCOUNT TAB -->
   <div id="tab-account" class="tab-panel">
     <div class="panel-header"><span>ACCOUNT</span></div>
     <div class="panel-body">
@@ -322,6 +319,12 @@
       (direction === 'buy' ? 'BUY' : 'SELL') +
       ' order queued.\n\nMeridian FX Pro is not yet connected to your FxPro broker account — trades will execute automatically once the cTrader Open API link is approved and active.'
     );
+  }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js');
+    });
   }
 </script>
 
