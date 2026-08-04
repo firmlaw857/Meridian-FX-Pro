@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Meridian FX</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: #000000; overflow: hidden; }
+  body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
+
+  #topbar {
+    height: 52px;
+    background: #000000;
+    border-bottom: 1px solid #d4af37;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+  }
+
+  .logo {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .logo span.fx {
+    color: #d4af37;
+  }
+
+  .logo .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #2962ff;
+    box-shadow: 0 0 6px #2962ff;
+  }
+
+  .status {
+    color: #2962ff;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  #chart-container {
+    height: calc(100% - 52px);
+    width: 100%;
+  }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="logo">
+    <div class="dot"></div>
+    MERIDIAN <span class="fx">FX</span>
+  </div>
+  <div class="status">Live Market</div>
+</div>
+
+<div id="chart-container">
+  <div id="tradingview_chart" style="height:100%; width:100%;"></div>
+</div>
+
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+  new TradingView.widget({
+    autosize: true,
+    symbol: "FX:EURUSD",
+    interval: "60",
+    timezone: "Etc/UTC",
+    theme: "dark",
+    style: "1",
+    locale: "en",
+    toolbar_bg: "#000000",
+    enable_publishing: false,
+    allow_symbol_change: true,
+    hide_top_toolbar: false,
+    hide_legend: false,
+    save_image: false,
+    container_id: "tradingview_chart",
+    overrides: {
+      "paneProperties.background": "#000000",
+      "paneProperties.backgroundType": "solid",
+      "paneProperties.vertGridProperties.color": "#111111",
+      "paneProperties.horzGridProperties.color": "#111111",
+      "scalesProperties.textColor": "#ffffff",
+      "scalesProperties.lineColor": "#222222",
+      "mainSeriesProperties.candleStyle.upColor": "#d4af37",
+      "mainSeriesProperties.candleStyle.downColor": "#2962ff",
+      "mainSeriesProperties.candleStyle.borderUpColor": "#d4af37",
+      "mainSeriesProperties.candleStyle.borderDownColor": "#2962ff",
+      "mainSeriesProperties.candleStyle.wickUpColor": "#d4af37",
+      "mainSeriesProperties.candleStyle.wickDownColor": "#2962ff"
+    },
+    loading_screen: { backgroundColor: "#000000", foregroundColor: "#d4af37" }
+  });
+</script>
+
+</body>
+</html>
