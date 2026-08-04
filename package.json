@@ -1,0 +1,11 @@
+{
+  "name": "meridian-fx-pro",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "@reiryoku/ctrader-layer": "^2.2.0"
+  }
+}
