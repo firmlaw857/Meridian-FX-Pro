@@ -15,56 +15,39 @@
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; background: #000000; overflow: hidden; }
   body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; display: flex; flex-direction: column; }
-
-  #topbar {
-    height: 52px; background: #000000; border-bottom: 1px solid #d4af37;
-    display: flex; align-items: center; justify-content: space-between; padding: 0 14px; flex-shrink: 0; z-index: 20;
-  }
+  #topbar { height: 52px; background: #000000; border-bottom: 1px solid #d4af37; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; flex-shrink: 0; z-index: 20; }
   .logo { color: #ffffff; font-size: 17px; font-weight: 700; letter-spacing: 1.5px; display: flex; align-items: center; gap: 6px; }
   .logo span.fx { color: #d4af37; }
   .logo .dot { width: 7px; height: 7px; border-radius: 50%; background: #2962ff; box-shadow: 0 0 6px #2962ff; }
-
   #account-switch { display: flex; background: #111111; border: 1px solid #222; border-radius: 20px; overflow: hidden; font-size: 11px; font-weight: 700; }
   #account-switch button { background: none; border: none; color: #888; padding: 6px 12px; font-weight: 700; letter-spacing: 0.5px; font-size: 11px; }
   #account-switch button.active.demo { background: #2962ff; color: #fff; }
   #account-switch button.active.live { background: #d4af37; color: #000; }
-
   #main-content { flex: 1; overflow: hidden; position: relative; }
   .tab-panel { display: none; height: 100%; width: 100%; }
   .tab-panel.active { display: block; }
-
   #tab-chart { display: none; flex-direction: column; }
   #tab-chart.active { display: flex; }
   #chart-container { flex: 1; width: 100%; min-height: 0; }
   #tradingview_chart { height: 100%; width: 100%; }
-
   #trade-overlay { height: 64px; background: #0a0a0a; border-top: 1px solid #1a1a1a; display: flex; align-items: center; padding: 0 10px; gap: 8px; flex-shrink: 0; }
   .trade-btn { flex: 1; height: 44px; border: none; border-radius: 6px; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
   #sell-btn { background: #2962ff; color: #fff; }
   #buy-btn { background: #d4af37; color: #000; }
   .trade-btn .px { font-size: 10px; opacity: 0.85; font-weight: 500; }
   #volume-input { width: 64px; height: 44px; background: #111; border: 1px solid #333; color: #fff; text-align: center; border-radius: 6px; font-size: 13px; }
-
   .panel-header { height: 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #1a1a1a; color: #fff; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; }
   .panel-body { height: calc(100% - 42px); overflow-y: auto; }
-
   .empty-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #444; gap: 10px; }
   .empty-state svg { opacity: 0.4; }
   .empty-state p { font-size: 13px; color: #555; }
-
   .status-banner { margin: 14px; padding: 12px 14px; background: #14110a; border: 1px solid #3a2f14; border-radius: 8px; color: #d4af37; font-size: 12px; line-height: 1.5; }
   .status-banner.connected { background: #0a1410; border-color: #14392a; color: #4ade80; }
-
-  #connect-btn {
-    display: block; margin: 0 14px 14px 14px; padding: 14px; background: #d4af37; color: #000;
-    border: none; border-radius: 8px; font-weight: 700; font-size: 14px; letter-spacing: 0.5px; text-align: center;
-  }
+  #connect-btn { display: block; margin: 0 14px 14px 14px; padding: 14px; background: #d4af37; color: #000; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; letter-spacing: 0.5px; text-align: center; }
   #connect-btn.hidden { display: none; }
-
   .account-row { display: flex; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #131313; color: #ccc; font-size: 13px; }
   .account-row span.label { color: #777; }
   .account-row span.value { color: #fff; font-weight: 600; }
-
   #bottom-nav { height: 60px; background: #000000; border-top: 1px solid #1a1a1a; display: flex; flex-shrink: 0; z-index: 20; }
   .nav-btn { flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #666; }
   .nav-btn.active { color: #d4af37; }
@@ -83,13 +66,12 @@
 </div>
 
 <div id="main-content">
-
   <div id="tab-chart" class="tab-panel active">
     <div id="chart-container"><div id="tradingview_chart"></div></div>
     <div id="trade-overlay">
-      <button class="trade-btn" id="sell-btn" onclick="placeTrade('sell')">SELL <span class="px" id="sell-price">connecting...</span></button>
+      <button class="trade-btn" id="sell-btn" onclick="placeTrade('sell')">SELL <span class="px" id="sell-price">--</span></button>
       <input id="volume-input" type="number" value="0.01" step="0.01" min="0.01">
-      <button class="trade-btn" id="buy-btn" onclick="placeTrade('buy')">BUY <span class="px" id="buy-price">connecting...</span></button>
+      <button class="trade-btn" id="buy-btn" onclick="placeTrade('buy')">BUY <span class="px" id="buy-price">--</span></button>
     </div>
   </div>
 
@@ -97,7 +79,7 @@
     <div class="panel-header"><span>POSITIONS</span><span id="positions-count">0</span></div>
     <div class="panel-body"><div class="empty-state">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
-      <p>No open positions</p></div></div>
+      <p id="positions-empty-text">No open positions</p></div></div>
   </div>
 
   <div id="tab-orders" class="tab-panel">
@@ -120,14 +102,13 @@
       <div class="status-banner" id="conn-status">Checking broker connection...</div>
       <button id="connect-btn" onclick="window.location.href='/login'">Connect FxPro Broker</button>
       <div class="account-row"><span class="label">Account</span><span class="value" id="acc-type-label">Demo (FxPro cTrader)</span></div>
-      <div class="account-row"><span class="label">Balance</span><span class="value">--</span></div>
-      <div class="account-row"><span class="label">Equity</span><span class="value">--</span></div>
-      <div class="account-row"><span class="label">Margin</span><span class="value">--</span></div>
-      <div class="account-row"><span class="label">Free Margin</span><span class="value">--</span></div>
-      <div class="account-row"><span class="label">Leverage</span><span class="value">--</span></div>
+      <div class="account-row"><span class="label">Balance</span><span class="value" id="val-balance">--</span></div>
+      <div class="account-row"><span class="label">Equity</span><span class="value" id="val-equity">--</span></div>
+      <div class="account-row"><span class="label">Margin</span><span class="value" id="val-margin">--</span></div>
+      <div class="account-row"><span class="label">Free Margin</span><span class="value" id="val-freemargin">--</span></div>
+      <div class="account-row"><span class="label">Leverage</span><span class="value" id="val-leverage">--</span></div>
     </div>
   </div>
-
 </div>
 
 <div id="bottom-nav">
@@ -145,7 +126,9 @@
 
 <script src="https://s3.tradingview.com/tv.js"></script>
 <script>
-  let currentAccount = 'demo';
+  let currentAccountType = 'demo';
+  let accountsByType = { demo: null, live: null };
+  let activeConnectedId = null;
 
   new TradingView.widget({
     autosize: true, symbol: "FX:EURUSD", interval: "60", timezone: "Etc/UTC", theme: "dark", style: "1", locale: "en",
@@ -167,18 +150,29 @@
     document.getElementById('tab-' + tab).classList.add('active');
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.nav-btn[data-tab="' + tab + '"]').classList.add('active');
-    if (tab === 'account') checkConnection();
+    if (tab === 'account') refreshAll();
   }
 
   function switchAccount(type) {
-    currentAccount = type;
+    currentAccountType = type;
     document.querySelectorAll('#account-switch button').forEach(b => b.classList.remove('active'));
     document.querySelector('#account-switch .' + type).classList.add('active');
     document.getElementById('acc-type-label').textContent = type === 'demo' ? 'Demo (FxPro cTrader)' : 'Live (FxPro cTrader)';
+    clearBalanceDisplay();
+    connectAndLoad(type);
+  }
+
+  function clearBalanceDisplay() {
+    ['val-balance','val-equity','val-margin','val-freemargin','val-leverage'].forEach(id => document.getElementById(id).textContent = '--');
   }
 
   function placeTrade(direction) {
-    alert((direction === 'buy' ? 'BUY' : 'SELL') + ' order queued.\n\nMeridian FX Pro is not yet connected to your FxPro broker account — trades will execute automatically once the cTrader Open API link is approved and active.');
+    const id = accountsByType[currentAccountType];
+    if (!id) {
+      alert('Not connected to a ' + currentAccountType + ' account yet. Go to the Account tab and connect first.');
+      return;
+    }
+    alert((direction === 'buy' ? 'BUY' : 'SELL') + ' — trade execution wiring is next. Account is connected: ' + id);
   }
 
   async function checkConnection() {
@@ -188,21 +182,81 @@
       const res = await fetch('/api/status');
       const data = await res.json();
       if (data.connected) {
-        banner.textContent = 'Broker connected. Meridian FX Pro is linked to your FxPro cTrader account.';
+        banner.textContent = 'Broker connected. Loading account data...';
         banner.classList.add('connected');
         btn.classList.add('hidden');
+        return true;
       } else {
         banner.textContent = 'Broker not connected yet. Tap below to link your FxPro cTrader account.';
         banner.classList.remove('connected');
         btn.classList.remove('hidden');
+        return false;
       }
     } catch (e) {
       banner.textContent = 'Could not reach the server. Check your connection and try again.';
       btn.classList.remove('hidden');
+      return false;
     }
   }
 
-  checkConnection();
+  async function loadAccountsList() {
+    try {
+      const res = await fetch('/api/accounts');
+      const data = await res.json();
+      const list = data.accounts || data.ctidTraderAccount || data;
+      if (Array.isArray(list)) {
+        list.forEach(acc => {
+          const id = acc.ctidTraderAccountId || acc.accountId || acc.id;
+          const isLive = acc.isLive === true || acc.live === true;
+          if (id) accountsByType[isLive ? 'live' : 'demo'] = id;
+        });
+      }
+      return true;
+    } catch (e) {
+      document.getElementById('conn-status').textContent = 'Connected, but could not load account list yet.';
+      return false;
+    }
+  }
+
+  async function connectAndLoad(type) {
+    const id = accountsByType[type];
+    const banner = document.getElementById('conn-status');
+    if (!id) {
+      banner.textContent = 'No ' + type + ' account found on this cTrader ID.';
+      return;
+    }
+    banner.textContent = 'Connecting to ' + type + ' account...';
+    try {
+      await fetch('/api/connect/' + id + '?live=' + (type === 'live'));
+      activeConnectedId = id;
+      const balRes = await fetch('/api/balance/' + id);
+      const balData = await balRes.json();
+      const trader = balData.trader || balData;
+      if (trader && trader.balance !== undefined) {
+        document.getElementById('val-balance').textContent = (trader.balance / 100).toFixed(2) + ' USD';
+        document.getElementById('val-equity').textContent = trader.equity ? (trader.equity / 100).toFixed(2) + ' USD' : '--';
+        document.getElementById('val-margin').textContent = trader.margin ? (trader.margin / 100).toFixed(2) + ' USD' : '--';
+        document.getElementById('val-freemargin').textContent = trader.freeMargin ? (trader.freeMargin / 100).toFixed(2) + ' USD' : '--';
+        document.getElementById('val-leverage').textContent = trader.leverageInCents ? (trader.leverageInCents / 100) + 'x' : '--';
+        banner.textContent = 'Broker connected. Meridian FX Pro is linked to your FxPro cTrader account.';
+        banner.classList.add('connected');
+      } else {
+        banner.textContent = 'Connected, but balance data came back in an unexpected format. Check server logs.';
+      }
+    } catch (e) {
+      banner.textContent = 'Connected to broker, but fetching account data failed: ' + e.message;
+    }
+  }
+
+  async function refreshAll() {
+    const connected = await checkConnection();
+    if (!connected) return;
+    const gotList = await loadAccountsList();
+    if (!gotList) return;
+    connectAndLoad(currentAccountType);
+  }
+
+  refreshAll();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
