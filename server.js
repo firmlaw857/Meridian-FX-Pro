@@ -70,12 +70,14 @@ app.get("/api/connect/:accountId", async (req, res) => {
     setInterval(() => connection.sendHeartbeat(), 25000);
 
     connection.on("ProtoOASpotEvent", (event) => {
-      console.log("Spot event received:", JSON.stringify(event));
+      console.log("Spot event raw:", event);
+      console.log("Spot event keys:", Object.keys(event));
+      console.log("bid value:", event.bid, "ask value:", event.ask);
       latestPrices[accountId] = { bid: event.bid, ask: event.ask, symbolId: event.symbolId };
     });
 
     connection.on("ProtoOAExecutionEvent", (event) => {
-      console.log("Execution event received:", JSON.stringify(event));
+      console.log("Execution event raw:", event);
       lastExecutions[accountId] = event;
     });
 
