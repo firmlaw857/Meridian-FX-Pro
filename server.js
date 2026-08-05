@@ -74,7 +74,7 @@ app.get("/api/connect/:accountId", async (req, res) => {
 
 app.get("/api/balance/:accountId", async (req, res) => {
   const connection = connections[req.params.accountId];
-  if (!connection) return res.status(400).json({ error: "Account not connected." });
+  if (!connection) return res.status(400).json({ error: "Account not connected. Call /api/connect/:accountId first." });
   try {
     const trader = await connection.sendCommand("ProtoOATraderReq", { ctidTraderAccountId: req.params.accountId });
     res.json(trader);
@@ -88,6 +88,17 @@ app.get("/api/positions/:accountId", async (req, res) => {
   if (!connection) return res.status(400).json({ error: "Account not connected." });
   try {
     const data = await connection.sendCommand("ProtoOAReconcileReq", { ctidTraderAccountId: req.params.accountId });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message || String(err) });
+  }
+});
+
+app.get("/api/symbols/:accountId", async (req, res) => {
+  const connection = connections[req.params.accountId];
+  if (!connection) return res.status(400).json({ error: "Account not connected." });
+  try {
+    const data = await connection.sendCommand("ProtoOASymbolsListReq", { ctidTraderAccountId: req.params.accountId });
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message || String(err) });

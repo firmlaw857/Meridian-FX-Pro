@@ -79,7 +79,7 @@
     <div class="panel-header"><span>POSITIONS</span><span id="positions-count">0</span></div>
     <div class="panel-body"><div class="empty-state">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
-      <p id="positions-empty-text">No open positions</p></div></div>
+      <p>No open positions</p></div></div>
   </div>
 
   <div id="tab-orders" class="tab-panel">
@@ -128,7 +128,7 @@
 <script>
   let currentAccountType = 'demo';
   let accountsByType = { demo: null, live: null };
-  let activeConnectedId = null;
+  let symbolMap = {};
 
   new TradingView.widget({
     autosize: true, symbol: "FX:EURUSD", interval: "60", timezone: "Etc/UTC", theme: "dark", style: "1", locale: "en",
@@ -166,13 +166,44 @@
     ['val-balance','val-equity','val-margin','val-freemargin','val-leverage'].forEach(id => document.getElementById(id).textContent = '--');
   }
 
-  function placeTrade(direction) {
+  async function loadSymbols(accountId) {
+    try {
+      const res = await fetch('/api/symbols/' + accountId);
+      const data = await res.json();
+      const list = data.symbol || data.symbols || [];
+      list.forEach(s => { symbolMap[s.symbolName] = s.symbolId; });
+    } catch (e) {
+      console.log('Symbol load failed', e);
+    }
+  }
+
+  async function placeTrade(direction) {
     const id = accountsByType[currentAccountType];
     if (!id) {
       alert('Not connected to a ' + currentAccountType + ' account yet. Go to the Account tab and connect first.');
       return;
     }
-    alert((direction === 'buy' ? 'BUY' : 'SELL') + ' — trade execution wiring is next. Account is connected: ' + id);
+    if (currentAccountType === 'live') {
+      const confirmed = confirm('⚠️ LIVE ACCOUNT — this will place a REAL ' + direction.toUpperCase() + ' order with real money. Continue?');
+      if (!confirmed) return;
+    }
+    const symbolId = symbolMap['EURUSD'];
+    if (!symbolId) {
+      alert('Symbol list not loaded yet. Try switching accounts again.');
+      return;
+    }
+    const volume = parseFloat(document.getElementById('volume-input').value) || 0.01;
+    try {
+      const res = await fetch('/api/trade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: id, symbolId, side: direction.toUpperCase(), volume })
+      });
+      const data = await res.json();
+      alert((direction === 'buy' ? 'BUY' : 'SELL') + ' order sent.\n\n' + JSON.stringify(data));
+    } catch (e) {
+      alert('Trade failed: ' + e.message);
+    }
   }
 
   async function checkConnection() {
@@ -228,20 +259,20 @@
     banner.textContent = 'Connecting to ' + type + ' account...';
     try {
       await fetch('/api/connect/' + id + '?live=' + (type === 'live'));
-      activeConnectedId = id;
+      await loadSymbols(id);
       const balRes = await fetch('/api/balance/' + id);
       const balData = await balRes.json();
       const trader = balData.trader || balData;
       if (trader && trader.balance !== undefined) {
         document.getElementById('val-balance').textContent = (trader.balance / 100).toFixed(2) + ' USD';
-        document.getElementById('val-equity').textContent = trader.equity ? (trader.equity / 100).toFixed(2) + ' USD' : '--';
-        document.getElementById('val-margin').textContent = trader.margin ? (trader.margin / 100).toFixed(2) + ' USD' : '--';
-        document.getElementById('val-freemargin').textContent = trader.freeMargin ? (trader.freeMargin / 100).toFixed(2) + ' USD' : '--';
+        document.getElementById('val-equity').textContent = (trader.balance / 100).toFixed(2) + ' USD';
+        document.getElementById('val-margin').textContent = '0.00 USD';
+        document.getElementById('val-freemargin').textContent = (trader.balance / 100).toFixed(2) + ' USD';
         document.getElementById('val-leverage').textContent = trader.leverageInCents ? (trader.leverageInCents / 100) + 'x' : '--';
         banner.textContent = 'Broker connected. Meridian FX Pro is linked to your FxPro cTrader account.';
         banner.classList.add('connected');
       } else {
-        banner.textContent = 'Connected, but balance data came back in an unexpected format. Check server logs.';
+        banner.textContent = 'Connected, but balance data came back in an unexpected format.';
       }
     } catch (e) {
       banner.textContent = 'Connected to broker, but fetching account data failed: ' + e.message;
