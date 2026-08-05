@@ -17,33 +17,15 @@
   body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; display: flex; flex-direction: column; }
 
   #topbar {
-    height: 52px;
-    background: #000000;
-    border-bottom: 1px solid #d4af37;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 14px;
-    flex-shrink: 0;
-    z-index: 20;
+    height: 52px; background: #000000; border-bottom: 1px solid #d4af37;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 14px; flex-shrink: 0; z-index: 20;
   }
   .logo { color: #ffffff; font-size: 17px; font-weight: 700; letter-spacing: 1.5px; display: flex; align-items: center; gap: 6px; }
   .logo span.fx { color: #d4af37; }
   .logo .dot { width: 7px; height: 7px; border-radius: 50%; background: #2962ff; box-shadow: 0 0 6px #2962ff; }
 
-  #account-switch {
-    display: flex;
-    background: #111111;
-    border: 1px solid #222;
-    border-radius: 20px;
-    overflow: hidden;
-    font-size: 11px;
-    font-weight: 700;
-  }
-  #account-switch button {
-    background: none; border: none; color: #888; padding: 6px 12px; font-weight: 700;
-    letter-spacing: 0.5px; font-size: 11px;
-  }
+  #account-switch { display: flex; background: #111111; border: 1px solid #222; border-radius: 20px; overflow: hidden; font-size: 11px; font-weight: 700; }
+  #account-switch button { background: none; border: none; color: #888; padding: 6px 12px; font-weight: 700; letter-spacing: 0.5px; font-size: 11px; }
   #account-switch button.active.demo { background: #2962ff; color: #fff; }
   #account-switch button.active.live { background: #d4af37; color: #000; }
 
@@ -56,111 +38,35 @@
   #chart-container { flex: 1; width: 100%; min-height: 0; }
   #tradingview_chart { height: 100%; width: 100%; }
 
-  #trade-overlay {
-    height: 64px;
-    background: #0a0a0a;
-    border-top: 1px solid #1a1a1a;
-    display: flex;
-    align-items: center;
-    padding: 0 10px;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-  .trade-btn {
-    flex: 1;
-    height: 44px;
-    border: none;
-    border-radius: 6px;
-    font-weight: 700;
-    font-size: 13px;
-    letter-spacing: 0.5px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    line-height: 1.2;
-  }
+  #trade-overlay { height: 64px; background: #0a0a0a; border-top: 1px solid #1a1a1a; display: flex; align-items: center; padding: 0 10px; gap: 8px; flex-shrink: 0; }
+  .trade-btn { flex: 1; height: 44px; border: none; border-radius: 6px; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
   #sell-btn { background: #2962ff; color: #fff; }
   #buy-btn { background: #d4af37; color: #000; }
   .trade-btn .px { font-size: 10px; opacity: 0.85; font-weight: 500; }
-  #volume-input {
-    width: 64px;
-    height: 44px;
-    background: #111;
-    border: 1px solid #333;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    font-size: 13px;
-  }
+  #volume-input { width: 64px; height: 44px; background: #111; border: 1px solid #333; color: #fff; text-align: center; border-radius: 6px; font-size: 13px; }
 
-  .panel-header {
-    height: 42px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 16px;
-    border-bottom: 1px solid #1a1a1a;
-    color: #fff;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-  }
+  .panel-header { height: 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #1a1a1a; color: #fff; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; }
   .panel-body { height: calc(100% - 42px); overflow-y: auto; }
 
-  .empty-state {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: #444;
-    gap: 10px;
-  }
+  .empty-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #444; gap: 10px; }
   .empty-state svg { opacity: 0.4; }
   .empty-state p { font-size: 13px; color: #555; }
 
-  .status-banner {
-    margin: 14px;
-    padding: 12px 14px;
-    background: #14110a;
-    border: 1px solid #3a2f14;
-    border-radius: 8px;
-    color: #d4af37;
-    font-size: 12px;
-    line-height: 1.5;
-  }
+  .status-banner { margin: 14px; padding: 12px 14px; background: #14110a; border: 1px solid #3a2f14; border-radius: 8px; color: #d4af37; font-size: 12px; line-height: 1.5; }
+  .status-banner.connected { background: #0a1410; border-color: #14392a; color: #4ade80; }
 
-  .account-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 14px 16px;
-    border-bottom: 1px solid #131313;
-    color: #ccc;
-    font-size: 13px;
+  #connect-btn {
+    display: block; margin: 0 14px 14px 14px; padding: 14px; background: #d4af37; color: #000;
+    border: none; border-radius: 8px; font-weight: 700; font-size: 14px; letter-spacing: 0.5px; text-align: center;
   }
+  #connect-btn.hidden { display: none; }
+
+  .account-row { display: flex; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #131313; color: #ccc; font-size: 13px; }
   .account-row span.label { color: #777; }
   .account-row span.value { color: #fff; font-weight: 600; }
 
-  #bottom-nav {
-    height: 60px;
-    background: #000000;
-    border-top: 1px solid #1a1a1a;
-    display: flex;
-    flex-shrink: 0;
-    z-index: 20;
-  }
-  .nav-btn {
-    flex: 1;
-    background: none;
-    border: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    color: #666;
-  }
+  #bottom-nav { height: 60px; background: #000000; border-top: 1px solid #1a1a1a; display: flex; flex-shrink: 0; z-index: 20; }
+  .nav-btn { flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #666; }
   .nav-btn.active { color: #d4af37; }
   .nav-btn svg { width: 20px; height: 20px; }
   .nav-btn span { font-size: 9px; letter-spacing: 0.4px; font-weight: 600; }
@@ -179,56 +85,40 @@
 <div id="main-content">
 
   <div id="tab-chart" class="tab-panel active">
-    <div id="chart-container">
-      <div id="tradingview_chart"></div>
-    </div>
+    <div id="chart-container"><div id="tradingview_chart"></div></div>
     <div id="trade-overlay">
-      <button class="trade-btn" id="sell-btn" onclick="placeTrade('sell')">
-        SELL <span class="px" id="sell-price">connecting...</span>
-      </button>
+      <button class="trade-btn" id="sell-btn" onclick="placeTrade('sell')">SELL <span class="px" id="sell-price">connecting...</span></button>
       <input id="volume-input" type="number" value="0.01" step="0.01" min="0.01">
-      <button class="trade-btn" id="buy-btn" onclick="placeTrade('buy')">
-        BUY <span class="px" id="buy-price">connecting...</span>
-      </button>
+      <button class="trade-btn" id="buy-btn" onclick="placeTrade('buy')">BUY <span class="px" id="buy-price">connecting...</span></button>
     </div>
   </div>
 
   <div id="tab-positions" class="tab-panel">
     <div class="panel-header"><span>POSITIONS</span><span id="positions-count">0</span></div>
-    <div class="panel-body">
-      <div class="empty-state">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
-        <p>No open positions</p>
-      </div>
-    </div>
+    <div class="panel-body"><div class="empty-state">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
+      <p>No open positions</p></div></div>
   </div>
 
   <div id="tab-orders" class="tab-panel">
     <div class="panel-header"><span>PENDING ORDERS</span><span id="orders-count">0</span></div>
-    <div class="panel-body">
-      <div class="empty-state">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-        <p>No pending orders</p>
-      </div>
-    </div>
+    <div class="panel-body"><div class="empty-state">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      <p>No pending orders</p></div></div>
   </div>
 
   <div id="tab-history" class="tab-panel">
     <div class="panel-header"><span>HISTORY</span></div>
-    <div class="panel-body">
-      <div class="empty-state">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l4 2"/></svg>
-        <p>No trade history</p>
-      </div>
-    </div>
+    <div class="panel-body"><div class="empty-state">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l4 2"/></svg>
+      <p>No trade history</p></div></div>
   </div>
 
   <div id="tab-account" class="tab-panel">
     <div class="panel-header"><span>ACCOUNT</span></div>
     <div class="panel-body">
-      <div class="status-banner" id="conn-status">
-        Broker not connected yet. Meridian FX Pro is awaiting cTrader Open API approval — trading and live balances activate automatically once linked.
-      </div>
+      <div class="status-banner" id="conn-status">Checking broker connection...</div>
+      <button id="connect-btn" onclick="window.location.href='/login'">Connect FxPro Broker</button>
       <div class="account-row"><span class="label">Account</span><span class="value" id="acc-type-label">Demo (FxPro cTrader)</span></div>
       <div class="account-row"><span class="label">Balance</span><span class="value">--</span></div>
       <div class="account-row"><span class="label">Equity</span><span class="value">--</span></div>
@@ -242,25 +132,15 @@
 
 <div id="bottom-nav">
   <button class="nav-btn active" data-tab="chart" onclick="switchTab('chart')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5M4 19h16"/><path d="M8 15l3-4 3 3 4-6"/></svg>
-    <span>CHART</span>
-  </button>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5M4 19h16"/><path d="M8 15l3-4 3 3 4-6"/></svg><span>CHART</span></button>
   <button class="nav-btn" data-tab="positions" onclick="switchTab('positions')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
-    <span>POSITIONS</span>
-  </button>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg><span>POSITIONS</span></button>
   <button class="nav-btn" data-tab="orders" onclick="switchTab('orders')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-    <span>ORDERS</span>
-  </button>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span>ORDERS</span></button>
   <button class="nav-btn" data-tab="history" onclick="switchTab('history')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l4 2"/></svg>
-    <span>HISTORY</span>
-  </button>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l4 2"/></svg><span>HISTORY</span></button>
   <button class="nav-btn" data-tab="account" onclick="switchTab('account')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
-    <span>ACCOUNT</span>
-  </button>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg><span>ACCOUNT</span></button>
 </div>
 
 <script src="https://s3.tradingview.com/tv.js"></script>
@@ -268,33 +148,16 @@
   let currentAccount = 'demo';
 
   new TradingView.widget({
-    autosize: true,
-    symbol: "FX:EURUSD",
-    interval: "60",
-    timezone: "Etc/UTC",
-    theme: "dark",
-    style: "1",
-    locale: "en",
-    toolbar_bg: "#000000",
-    enable_publishing: false,
-    allow_symbol_change: true,
-    hide_top_toolbar: false,
-    hide_legend: false,
-    save_image: false,
-    container_id: "tradingview_chart",
+    autosize: true, symbol: "FX:EURUSD", interval: "60", timezone: "Etc/UTC", theme: "dark", style: "1", locale: "en",
+    toolbar_bg: "#000000", enable_publishing: false, allow_symbol_change: true, hide_top_toolbar: false,
+    hide_legend: false, save_image: false, container_id: "tradingview_chart",
     overrides: {
-      "paneProperties.background": "#000000",
-      "paneProperties.backgroundType": "solid",
-      "paneProperties.vertGridProperties.color": "#111111",
-      "paneProperties.horzGridProperties.color": "#111111",
-      "scalesProperties.textColor": "#ffffff",
-      "scalesProperties.lineColor": "#222222",
-      "mainSeriesProperties.candleStyle.upColor": "#d4af37",
-      "mainSeriesProperties.candleStyle.downColor": "#2962ff",
-      "mainSeriesProperties.candleStyle.borderUpColor": "#d4af37",
-      "mainSeriesProperties.candleStyle.borderDownColor": "#2962ff",
-      "mainSeriesProperties.candleStyle.wickUpColor": "#d4af37",
-      "mainSeriesProperties.candleStyle.wickDownColor": "#2962ff"
+      "paneProperties.background": "#000000", "paneProperties.backgroundType": "solid",
+      "paneProperties.vertGridProperties.color": "#111111", "paneProperties.horzGridProperties.color": "#111111",
+      "scalesProperties.textColor": "#ffffff", "scalesProperties.lineColor": "#222222",
+      "mainSeriesProperties.candleStyle.upColor": "#d4af37", "mainSeriesProperties.candleStyle.downColor": "#2962ff",
+      "mainSeriesProperties.candleStyle.borderUpColor": "#d4af37", "mainSeriesProperties.candleStyle.borderDownColor": "#2962ff",
+      "mainSeriesProperties.candleStyle.wickUpColor": "#d4af37", "mainSeriesProperties.candleStyle.wickDownColor": "#2962ff"
     },
     loading_screen: { backgroundColor: "#000000", foregroundColor: "#d4af37" }
   });
@@ -304,27 +167,45 @@
     document.getElementById('tab-' + tab).classList.add('active');
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.nav-btn[data-tab="' + tab + '"]').classList.add('active');
+    if (tab === 'account') checkConnection();
   }
 
   function switchAccount(type) {
     currentAccount = type;
     document.querySelectorAll('#account-switch button').forEach(b => b.classList.remove('active'));
     document.querySelector('#account-switch .' + type).classList.add('active');
-    document.getElementById('acc-type-label').textContent =
-      type === 'demo' ? 'Demo (FxPro cTrader)' : 'Live (FxPro cTrader)';
+    document.getElementById('acc-type-label').textContent = type === 'demo' ? 'Demo (FxPro cTrader)' : 'Live (FxPro cTrader)';
   }
 
   function placeTrade(direction) {
-    alert(
-      (direction === 'buy' ? 'BUY' : 'SELL') +
-      ' order queued.\n\nMeridian FX Pro is not yet connected to your FxPro broker account — trades will execute automatically once the cTrader Open API link is approved and active.'
-    );
+    alert((direction === 'buy' ? 'BUY' : 'SELL') + ' order queued.\n\nMeridian FX Pro is not yet connected to your FxPro broker account — trades will execute automatically once the cTrader Open API link is approved and active.');
   }
 
+  async function checkConnection() {
+    const banner = document.getElementById('conn-status');
+    const btn = document.getElementById('connect-btn');
+    try {
+      const res = await fetch('/api/status');
+      const data = await res.json();
+      if (data.connected) {
+        banner.textContent = 'Broker connected. Meridian FX Pro is linked to your FxPro cTrader account.';
+        banner.classList.add('connected');
+        btn.classList.add('hidden');
+      } else {
+        banner.textContent = 'Broker not connected yet. Tap below to link your FxPro cTrader account.';
+        banner.classList.remove('connected');
+        btn.classList.remove('hidden');
+      }
+    } catch (e) {
+      banner.textContent = 'Could not reach the server. Check your connection and try again.';
+      btn.classList.remove('hidden');
+    }
+  }
+
+  checkConnection();
+
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js');
-    });
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
   }
 </script>
 
