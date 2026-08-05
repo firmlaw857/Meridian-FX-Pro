@@ -15,6 +15,7 @@ const PORT = process.env.PORT || 3000;
 
 let accessToken = null;
 let connections = {};
+let latestPrices = {};
 
 app.get("/login", (req, res) => {
   const url = `https://id.ctrader.com/my/settings/openapi/grantingaccess/?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=trading`;
@@ -66,10 +67,33 @@ app.get("/api/connect/:accountId", async (req, res) => {
     await connection.sendCommand("ProtoOAAccountAuthReq", { accessToken, ctidTraderAccountId: accountId });
     connections[accountId] = connection;
     setInterval(() => connection.sendHeartbeat(), 25000);
+
+    connection.on("ProtoOASpotEvent", (event) => {
+      latestPrices[accountId] = { bid: event.bid, ask: event.ask, symbolId: event.symbolId };
+    });
+
+    try {
+      const symbolsData = await connection.sendCommand("ProtoOASymbolsListReq", { ctidTraderAccountId: accountId });
+      const list = symbolsData.symbol || symbolsData.symbols || [];
+      const eurusd = list.find(s => s.symbolName === "EURUSD");
+      if (eurusd) {
+        await connection.sendCommand("ProtoOASubscribeSpotsReq", {
+          ctidTraderAccountId: accountId,
+          symbolId: [eurusd.symbolId],
+        });
+      }
+    } catch (subErr) {
+      console.log("Spot subscription failed:", subErr.message || subErr);
+    }
+
     res.json({ status: "connected", accountId });
   } catch (err) {
     res.status(500).json({ error: err.message || String(err) });
   }
+});
+
+app.get("/api/price/:accountId", (req, res) => {
+  res.json(latestPrices[req.params.accountId] || {});
 });
 
 app.get("/api/balance/:accountId", async (req, res) => {

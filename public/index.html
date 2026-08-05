@@ -129,6 +129,7 @@
   let currentAccountType = 'demo';
   let accountsByType = { demo: null, live: null };
   let symbolMap = {};
+  let priceInterval = null;
 
   new TradingView.widget({
     autosize: true, symbol: "FX:EURUSD", interval: "60", timezone: "Etc/UTC", theme: "dark", style: "1", locale: "en",
@@ -175,6 +176,20 @@
     } catch (e) {
       console.log('Symbol load failed', e);
     }
+  }
+
+  function startPricePolling(accountId) {
+    if (priceInterval) clearInterval(priceInterval);
+    priceInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/price/' + accountId);
+        const data = await res.json();
+        if (data.bid !== undefined) {
+          document.getElementById('sell-price').textContent = (data.bid / 100000).toFixed(5);
+          document.getElementById('buy-price').textContent = (data.ask / 100000).toFixed(5);
+        }
+      } catch (e) {}
+    }, 2000);
   }
 
   async function placeTrade(direction) {
@@ -260,6 +275,7 @@
     try {
       await fetch('/api/connect/' + id + '?live=' + (type === 'live'));
       await loadSymbols(id);
+      startPricePolling(id);
       const balRes = await fetch('/api/balance/' + id);
       const balData = await balRes.json();
       const trader = balData.trader || balData;
