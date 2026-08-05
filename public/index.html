@@ -48,6 +48,11 @@
   .account-row { display: flex; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #131313; color: #ccc; font-size: 13px; }
   .account-row span.label { color: #777; }
   .account-row span.value { color: #fff; font-weight: 600; }
+  .position-row { padding: 12px 16px; border-bottom: 1px solid #131313; }
+  .position-row .top { display: flex; justify-content: space-between; color: #fff; font-size: 14px; font-weight: 700; }
+  .position-row .bottom { display: flex; justify-content: space-between; color: #777; font-size: 11px; margin-top: 4px; }
+  .side-buy { color: #d4af37; }
+  .side-sell { color: #2962ff; }
   #bottom-nav { height: 60px; background: #000000; border-top: 1px solid #1a1a1a; display: flex; flex-shrink: 0; z-index: 20; }
   .nav-btn { flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #666; }
   .nav-btn.active { color: #d4af37; }
@@ -77,16 +82,20 @@
 
   <div id="tab-positions" class="tab-panel">
     <div class="panel-header"><span>POSITIONS</span><span id="positions-count">0</span></div>
-    <div class="panel-body"><div class="empty-state">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
-      <p>No open positions</p></div></div>
+    <div class="panel-body" id="positions-body">
+      <div class="empty-state" id="positions-empty">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
+        <p>No open positions</p></div>
+    </div>
   </div>
 
   <div id="tab-orders" class="tab-panel">
     <div class="panel-header"><span>PENDING ORDERS</span><span id="orders-count">0</span></div>
-    <div class="panel-body"><div class="empty-state">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-      <p>No pending orders</p></div></div>
+    <div class="panel-body" id="orders-body">
+      <div class="empty-state" id="orders-empty">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <p>No pending orders</p></div>
+    </div>
   </div>
 
   <div id="tab-history" class="tab-panel">
@@ -129,6 +138,7 @@
   let currentAccountType = 'demo';
   let accountsByType = { demo: null, live: null };
   let symbolMap = {};
+  let symbolNameById = {};
   let priceInterval = null;
 
   new TradingView.widget({
@@ -152,6 +162,7 @@
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.nav-btn[data-tab="' + tab + '"]').classList.add('active');
     if (tab === 'account') refreshAll();
+    if (tab === 'positions' || tab === 'orders') loadPositionsAndOrders();
   }
 
   function switchAccount(type) {
@@ -172,7 +183,10 @@
       const res = await fetch('/api/symbols/' + accountId);
       const data = await res.json();
       const list = data.symbol || data.symbols || [];
-      list.forEach(s => { symbolMap[s.symbolName] = s.symbolId; });
+      list.forEach(s => {
+        symbolMap[s.symbolName] = s.symbolId;
+        symbolNameById[s.symbolId] = s.symbolName;
+      });
     } catch (e) {
       console.log('Symbol load failed', e);
     }
@@ -190,6 +204,56 @@
         }
       } catch (e) {}
     }, 2000);
+  }
+
+  async function loadPositionsAndOrders() {
+    const id = accountsByType[currentAccountType];
+    if (!id) return;
+    try {
+      const res = await fetch('/api/positions/' + id);
+      const data = await res.json();
+      const positions = data.position || [];
+      const orders = data.order || [];
+
+      const posBody = document.getElementById('positions-body');
+      const posEmpty = document.getElementById('positions-empty');
+      document.getElementById('positions-count').textContent = positions.length;
+      posBody.querySelectorAll('.position-row').forEach(el => el.remove());
+      if (positions.length === 0) {
+        posEmpty.style.display = 'flex';
+      } else {
+        posEmpty.style.display = 'none';
+        positions.forEach(p => {
+          const symName = symbolNameById[p.tradeData?.symbolId] || ('Symbol ' + p.tradeData?.symbolId);
+          const side = p.tradeData?.tradeSide === 'BUY' ? 'side-buy' : 'side-sell';
+          const vol = p.tradeData?.volume ? (p.tradeData.volume / 100).toFixed(2) : '--';
+          const row = document.createElement('div');
+          row.className = 'position-row';
+          row.innerHTML = '<div class="top"><span class="' + side + '">' + (p.tradeData?.tradeSide || '') + ' ' + symName + '</span><span>' + vol + ' lots</span></div>' +
+                           '<div class="bottom"><span>Position ID: ' + p.positionId + '</span></div>';
+          posBody.appendChild(row);
+        });
+      }
+
+      const ordBody = document.getElementById('orders-body');
+      const ordEmpty = document.getElementById('orders-empty');
+      document.getElementById('orders-count').textContent = orders.length;
+      ordBody.querySelectorAll('.position-row').forEach(el => el.remove());
+      if (orders.length === 0) {
+        ordEmpty.style.display = 'flex';
+      } else {
+        ordEmpty.style.display = 'none';
+        orders.forEach(o => {
+          const symName = symbolNameById[o.tradeData?.symbolId] || ('Symbol ' + o.tradeData?.symbolId);
+          const row = document.createElement('div');
+          row.className = 'position-row';
+          row.innerHTML = '<div class="top"><span>' + (o.orderType || '') + ' ' + symName + '</span></div>';
+          ordBody.appendChild(row);
+        });
+      }
+    } catch (e) {
+      console.log('Failed to load positions/orders', e);
+    }
   }
 
   async function placeTrade(direction) {
@@ -215,7 +279,14 @@
         body: JSON.stringify({ accountId: id, symbolId, side: direction.toUpperCase(), volume })
       });
       const data = await res.json();
-      alert((direction === 'buy' ? 'BUY' : 'SELL') + ' order sent.\n\n' + JSON.stringify(data));
+      if (data.error) {
+        alert('Trade rejected: ' + data.error);
+        return;
+      }
+      alert((direction === 'buy' ? 'BUY' : 'SELL') + ' order sent. Checking Positions tab for confirmation in 2 seconds...');
+      setTimeout(() => {
+        switchTab('positions');
+      }, 2000);
     } catch (e) {
       alert('Trade failed: ' + e.message);
     }

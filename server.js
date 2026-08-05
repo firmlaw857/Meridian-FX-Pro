@@ -16,6 +16,7 @@ const PORT = process.env.PORT || 3000;
 let accessToken = null;
 let connections = {};
 let latestPrices = {};
+let lastExecutions = {};
 
 app.get("/login", (req, res) => {
   const url = `https://id.ctrader.com/my/settings/openapi/grantingaccess/?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=trading`;
@@ -69,18 +70,29 @@ app.get("/api/connect/:accountId", async (req, res) => {
     setInterval(() => connection.sendHeartbeat(), 25000);
 
     connection.on("ProtoOASpotEvent", (event) => {
+      console.log("Spot event received:", JSON.stringify(event));
       latestPrices[accountId] = { bid: event.bid, ask: event.ask, symbolId: event.symbolId };
+    });
+
+    connection.on("ProtoOAExecutionEvent", (event) => {
+      console.log("Execution event received:", JSON.stringify(event));
+      lastExecutions[accountId] = event;
     });
 
     try {
       const symbolsData = await connection.sendCommand("ProtoOASymbolsListReq", { ctidTraderAccountId: accountId });
       const list = symbolsData.symbol || symbolsData.symbols || [];
+      console.log("Symbols found:", list.length);
       const eurusd = list.find(s => s.symbolName === "EURUSD");
       if (eurusd) {
+        console.log("EURUSD symbolId:", eurusd.symbolId);
         await connection.sendCommand("ProtoOASubscribeSpotsReq", {
           ctidTraderAccountId: accountId,
           symbolId: [eurusd.symbolId],
         });
+        console.log("Spot subscription request sent successfully");
+      } else {
+        console.log("EURUSD not found in symbol list");
       }
     } catch (subErr) {
       console.log("Spot subscription failed:", subErr.message || subErr);
@@ -94,6 +106,10 @@ app.get("/api/connect/:accountId", async (req, res) => {
 
 app.get("/api/price/:accountId", (req, res) => {
   res.json(latestPrices[req.params.accountId] || {});
+});
+
+app.get("/api/last-execution/:accountId", (req, res) => {
+  res.json(lastExecutions[req.params.accountId] || {});
 });
 
 app.get("/api/balance/:accountId", async (req, res) => {
@@ -137,7 +153,7 @@ app.post("/api/trade", async (req, res) => {
     const order = await connection.sendCommand("ProtoOANewOrderReq", {
       ctidTraderAccountId: accountId, symbolId, orderType: "MARKET", tradeSide: side, volume: volume * 100,
     });
-    res.json(order);
+    res.json({ sent: true, ackResponse: order });
   } catch (err) {
     res.status(500).json({ error: err.message || String(err) });
   }
