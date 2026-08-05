@@ -43,8 +43,9 @@
   .empty-state p { font-size: 13px; color: #555; }
   .status-banner { margin: 14px; padding: 12px 14px; background: #14110a; border: 1px solid #3a2f14; border-radius: 8px; color: #d4af37; font-size: 12px; line-height: 1.5; }
   .status-banner.connected { background: #0a1410; border-color: #14392a; color: #4ade80; }
-  #connect-btn { display: block; margin: 0 14px 14px 14px; padding: 14px; background: #d4af37; color: #000; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; letter-spacing: 0.5px; text-align: center; }
-  #connect-btn.hidden { display: none; }
+  .status-banner.error { background: #1a0a0a; border-color: #3a1414; color: #f87171; }
+  #connect-btn, #retry-btn { display: block; margin: 0 14px 14px 14px; padding: 14px; background: #d4af37; color: #000; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; letter-spacing: 0.5px; text-align: center; }
+  #connect-btn.hidden, #retry-btn.hidden { display: none; }
   .account-row { display: flex; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #131313; color: #ccc; font-size: 13px; }
   .account-row span.label { color: #777; }
   .account-row span.value { color: #fff; font-weight: 600; }
@@ -109,7 +110,8 @@
     <div class="panel-header"><span>ACCOUNT</span></div>
     <div class="panel-body">
       <div class="status-banner" id="conn-status">Checking broker connection...</div>
-      <button id="connect-btn" onclick="window.location.href='/login'">Connect FxPro Broker</button>
+      <button id="connect-btn" class="hidden" onclick="window.location.href='/login'">Connect FxPro Broker</button>
+      <button id="retry-btn" class="hidden" onclick="refreshAll()">Retry Connection</button>
       <div class="account-row"><span class="label">Account</span><span class="value" id="acc-type-label">Demo (FxPro cTrader)</span></div>
       <div class="account-row"><span class="label">Balance</span><span class="value" id="val-balance">--</span></div>
       <div class="account-row"><span class="label">Equity</span><span class="value" id="val-equity">--</span></div>
@@ -178,18 +180,27 @@
     ['val-balance','val-equity','val-margin','val-freemargin','val-leverage'].forEach(id => document.getElementById(id).textContent = '--');
   }
 
+  function setBanner(text, mode) {
+    const b = document.getElementById('conn-status');
+    b.textContent = text;
+    b.classList.remove('connected', 'error');
+    if (mode) b.classList.add(mode);
+  }
+
+  function showButtons({ connect, retry }) {
+    document.getElementById('connect-btn').classList.toggle('hidden', !connect);
+    document.getElementById('retry-btn').classList.toggle('hidden', !retry);
+  }
+
   async function loadSymbols(accountId) {
-    try {
-      const res = await fetch('/api/symbols/' + accountId);
-      const data = await res.json();
-      const list = data.symbol || data.symbols || [];
-      list.forEach(s => {
-        symbolMap[s.symbolName] = s.symbolId;
-        symbolNameById[s.symbolId] = s.symbolName;
-      });
-    } catch (e) {
-      console.log('Symbol load failed', e);
-    }
+    const res = await fetch('/api/symbols/' + accountId);
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Failed to load symbols');
+    const list = data.symbol || data.symbols || [];
+    list.forEach(s => {
+      symbolMap[s.symbolName] = s.symbolId;
+      symbolNameById[s.symbolId] = s.symbolName;
+    });
   }
 
   function startPricePolling(accountId) {
@@ -212,6 +223,7 @@
     try {
       const res = await fetch('/api/positions/' + id);
       const data = await res.json();
+      if (!res.ok || data.error) return;
       const positions = data.position || [];
       const orders = data.order || [];
 
@@ -251,15 +263,13 @@
           ordBody.appendChild(row);
         });
       }
-    } catch (e) {
-      console.log('Failed to load positions/orders', e);
-    }
+    } catch (e) {}
   }
 
   async function placeTrade(direction) {
     const id = accountsByType[currentAccountType];
     if (!id) {
-      alert('Not connected to a ' + currentAccountType + ' account yet. Go to the Account tab and connect first.');
+      alert('Not connected yet. Go to the Account tab, connect, and wait for it to finish before trading.');
       return;
     }
     if (currentAccountType === 'live') {
@@ -268,7 +278,7 @@
     }
     const symbolId = symbolMap['EURUSD'];
     if (!symbolId) {
-      alert('Symbol list not loaded yet. Try switching accounts again.');
+      alert('Symbol data not loaded yet. Go to Account tab and reconnect.');
       return;
     }
     const volume = parseFloat(document.getElementById('volume-input').value) || 0.01;
@@ -279,76 +289,80 @@
         body: JSON.stringify({ accountId: id, symbolId, side: direction.toUpperCase(), volume })
       });
       const data = await res.json();
-      if (data.error) {
-        alert('Trade rejected: ' + data.error);
+      if (!res.ok || data.error) {
+        alert('Trade rejected: ' + (data.error || 'unknown error'));
         return;
       }
-      alert((direction === 'buy' ? 'BUY' : 'SELL') + ' order sent. Checking Positions tab for confirmation in 2 seconds...');
-      setTimeout(() => {
-        switchTab('positions');
-      }, 2000);
+      alert((direction === 'buy' ? 'BUY' : 'SELL') + ' order sent. Checking Positions tab for confirmation...');
+      setTimeout(() => switchTab('positions'), 2000);
     } catch (e) {
       alert('Trade failed: ' + e.message);
     }
   }
 
   async function checkConnection() {
-    const banner = document.getElementById('conn-status');
-    const btn = document.getElementById('connect-btn');
     try {
       const res = await fetch('/api/status');
       const data = await res.json();
       if (data.connected) {
-        banner.textContent = 'Broker connected. Loading account data...';
-        banner.classList.add('connected');
-        btn.classList.add('hidden');
+        setBanner('Broker connected. Loading account data...', null);
+        showButtons({ connect: false, retry: false });
         return true;
       } else {
-        banner.textContent = 'Broker not connected yet. Tap below to link your FxPro cTrader account.';
-        banner.classList.remove('connected');
-        btn.classList.remove('hidden');
+        setBanner('Broker not connected yet. Tap below to link your FxPro cTrader account.', null);
+        showButtons({ connect: true, retry: false });
         return false;
       }
     } catch (e) {
-      banner.textContent = 'Could not reach the server. Check your connection and try again.';
-      btn.classList.remove('hidden');
+      setBanner('Could not reach the server. It may be waking up (can take up to 50 seconds on free hosting) — tap Retry.', 'error');
+      showButtons({ connect: false, retry: true });
       return false;
     }
   }
 
   async function loadAccountsList() {
-    try {
-      const res = await fetch('/api/accounts');
-      const data = await res.json();
-      const list = data.accounts || data.ctidTraderAccount || data;
-      if (Array.isArray(list)) {
-        list.forEach(acc => {
-          const id = acc.ctidTraderAccountId || acc.accountId || acc.id;
-          const isLive = acc.isLive === true || acc.live === true;
-          if (id) accountsByType[isLive ? 'live' : 'demo'] = id;
-        });
-      }
-      return true;
-    } catch (e) {
-      document.getElementById('conn-status').textContent = 'Connected, but could not load account list yet.';
-      return false;
+    const res = await fetch('/api/accounts');
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Failed to load accounts');
+    const list = data.accounts || data.ctidTraderAccount || data;
+    if (Array.isArray(list)) {
+      list.forEach(acc => {
+        const id = acc.ctidTraderAccountId || acc.accountId || acc.id;
+        const isLive = acc.isLive === true || acc.live === true;
+        if (id) accountsByType[isLive ? 'live' : 'demo'] = id;
+      });
     }
   }
 
   async function connectAndLoad(type) {
     const id = accountsByType[type];
-    const banner = document.getElementById('conn-status');
     if (!id) {
-      banner.textContent = 'No ' + type + ' account found on this cTrader ID.';
+      setBanner('No ' + type + ' account found on this cTrader ID.', 'error');
+      showButtons({ connect: false, retry: true });
       return;
     }
-    banner.textContent = 'Connecting to ' + type + ' account...';
+    setBanner('Connecting to ' + type + ' account... (first connection after idle can take up to a minute)', null);
     try {
-      await fetch('/api/connect/' + id + '?live=' + (type === 'live'));
+      const connRes = await fetch('/api/connect/' + id + '?live=' + (type === 'live'));
+      const connData = await connRes.json();
+      if (!connRes.ok || connData.error) {
+        if (connData.error && connData.error.includes('AccountAuthReq')) {
+          setBanner('Session expired after server idle. Please reconnect.', 'error');
+          showButtons({ connect: true, retry: false });
+        } else {
+          setBanner('Connection failed: ' + (connData.error || 'unknown error'), 'error');
+          showButtons({ connect: false, retry: true });
+        }
+        return;
+      }
+
       await loadSymbols(id);
       startPricePolling(id);
+
       const balRes = await fetch('/api/balance/' + id);
       const balData = await balRes.json();
+      if (!balRes.ok || balData.error) throw new Error(balData.error || 'Failed to load balance');
+
       const trader = balData.trader || balData;
       if (trader && trader.balance !== undefined) {
         document.getElementById('val-balance').textContent = (trader.balance / 100).toFixed(2) + ' USD';
@@ -356,21 +370,30 @@
         document.getElementById('val-margin').textContent = '0.00 USD';
         document.getElementById('val-freemargin').textContent = (trader.balance / 100).toFixed(2) + ' USD';
         document.getElementById('val-leverage').textContent = trader.leverageInCents ? (trader.leverageInCents / 100) + 'x' : '--';
-        banner.textContent = 'Broker connected. Meridian FX Pro is linked to your FxPro cTrader account.';
-        banner.classList.add('connected');
+        setBanner('Broker connected. Meridian FX Pro is linked to your FxPro cTrader account.', 'connected');
+        showButtons({ connect: false, retry: false });
       } else {
-        banner.textContent = 'Connected, but balance data came back in an unexpected format.';
+        setBanner('Connected, but balance data came back in an unexpected format.', 'error');
+        showButtons({ connect: false, retry: true });
       }
     } catch (e) {
-      banner.textContent = 'Connected to broker, but fetching account data failed: ' + e.message;
+      setBanner('Error: ' + e.message, 'error');
+      showButtons({ connect: false, retry: true });
     }
   }
 
   async function refreshAll() {
+    setBanner('Checking broker connection...', null);
+    showButtons({ connect: false, retry: false });
     const connected = await checkConnection();
     if (!connected) return;
-    const gotList = await loadAccountsList();
-    if (!gotList) return;
+    try {
+      await loadAccountsList();
+    } catch (e) {
+      setBanner('Error loading accounts: ' + e.message, 'error');
+      showButtons({ connect: false, retry: true });
+      return;
+    }
     connectAndLoad(currentAccountType);
   }
 
