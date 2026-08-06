@@ -282,7 +282,9 @@ async function doTrade(side) {
   if (!execution) {
     alert('Order sent, but no confirmation arrived in 6 seconds. Check Positions tab manually.');
   } else if (execution.error) {
-    alert('Order REJECTED by FxPro: ' + (execution.description || 'no reason given'));
+    alert('Order REJECTED by FxPro. Full details:
+
+' + JSON.stringify(execution, null, 2));
   } else {
     alert('Order confirmed. Status: ' + (execution.executionType || 'filled') + '. Check Positions tab.');
   }
