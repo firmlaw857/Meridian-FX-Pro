@@ -19,15 +19,26 @@ let latestPrices = {};
 let lastExecutions = {};
 
 function dumpAllFields(obj) {
+  if (obj == null) return { note: "object was null/undefined" };
+  if (typeof obj.toObject === "function") {
+    try { return obj.toObject(); } catch (e) {}
+  }
+  if (typeof obj.toJSON === "function") {
+    try { return obj.toJSON(); } catch (e) {}
+  }
   const result = {};
-  const keys = Object.getOwnPropertyNames(obj);
-  keys.forEach(k => {
-    let val = obj[k];
-    if (val === undefined) val = "(undefined)";
-    if (val === null) val = "(null)";
-    if (typeof val === "function") val = "(function)";
-    result[k] = val;
-  });
+  let current = obj;
+  while (current && current !== Object.prototype) {
+    Object.getOwnPropertyNames(current).forEach(k => {
+      if (result[k] !== undefined) return;
+      let val;
+      try { val = obj[k]; } catch (e) { val = "(error reading)"; }
+      if (typeof val === "function") return;
+      result[k] = val === undefined ? "(undefined)" : val;
+    });
+    current = Object.getPrototypeOf(current);
+  }
+  result.__constructorName = obj.constructor ? obj.constructor.name : "unknown";
   return result;
 }
 
@@ -88,13 +99,13 @@ app.get("/api/connect/:accountId", async (req, res) => {
     });
     connection.on("ProtoOAExecutionEvent", (event) => {
       const dump = dumpAllFields(event);
-      console.log("EXECUTION EVENT FIELDS:", JSON.stringify(dump));
+      console.log("EXECUTION EVENT:", JSON.stringify(dump));
       lastExecutions[accountId] = dump;
     });
     connection.on("ProtoOAOrderErrorEvent", (event) => {
       const dump = dumpAllFields(event);
       dump.error = true;
-      console.log("ORDER ERROR EVENT FIELDS:", JSON.stringify(dump));
+      console.log("ORDER ERROR EVENT:", JSON.stringify(dump));
       lastExecutions[accountId] = dump;
     });
 
