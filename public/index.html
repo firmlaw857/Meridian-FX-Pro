@@ -448,8 +448,14 @@
   refreshAll();
 
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(reg => reg.unregister());
+    });
+    if (window.caches) {
+      caches.keys().then(names => names.forEach(name => caches.delete(name)));
+    }
   }
+
 </script>
 
 </body>
