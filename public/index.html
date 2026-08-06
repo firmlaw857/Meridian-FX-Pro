@@ -22,6 +22,7 @@
   #tradingview_chart { height: 100%; }
   #trade-bar { height: 64px; background: #0a0a0a; display: flex; align-items: center; padding: 0 10px; gap: 8px; }
   .trade-btn { flex: 1; height: 44px; border: none; border-radius: 6px; font-weight: 700; }
+  .trade-btn:disabled { opacity: 0.5; }
   #sell-btn { background: #2962ff; color: #fff; }
   #buy-btn { background: #d4af37; color: #000; }
   #vol { width: 60px; height: 44px; text-align: center; background: #111; color: #fff; border: 1px solid #333; }
@@ -246,19 +247,49 @@ async function doTrade(side) {
   }
   var volume = parseFloat(document.getElementById('vol').value) || 0.01;
 
+  document.getElementById('buy-btn').disabled = true;
+  document.getElementById('sell-btn').disabled = true;
+
   var res = await fetch('/api/trade', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ accountId: id, symbolId: eurusdId, side: side, volume: volume })
   }).catch(function(e) { alert('Network error: ' + e.message); return null; });
 
-  if (!res) return;
+  if (!res) {
+    document.getElementById('buy-btn').disabled = false;
+    document.getElementById('sell-btn').disabled = false;
+    return;
+  }
   var data = await res.json();
   if (!res.ok || data.error) {
     alert('Trade failed: ' + (data.error || 'unknown error'));
+    document.getElementById('buy-btn').disabled = false;
+    document.getElementById('sell-btn').disabled = false;
     return;
   }
-  alert(side + ' order sent. Check Positions tab in a few seconds.');
+
+  var execution = null;
+  for (var i = 0; i < 8; i++) {
+    await new Promise(function(r) { setTimeout(r, 700); });
+    var er = await fetch('/api/last-execution/' + id).catch(function() { return null; });
+    if (er) {
+      var ed = await er.json();
+      if (ed && Object.keys(ed).length > 0) { execution = ed; break; }
+    }
+  }
+
+  if (!execution) {
+    alert('Order sent, but no confirmation arrived in 6 seconds. Check Positions tab manually.');
+  } else if (execution.error) {
+    alert('Order REJECTED by FxPro: ' + (execution.description || 'no reason given'));
+  } else {
+    alert('Order confirmed. Status: ' + (execution.executionType || 'filled') + '. Check Positions tab.');
+  }
+
+  document.getElementById('buy-btn').disabled = false;
+  document.getElementById('sell-btn').disabled = false;
+  loadPositions();
 }
 
 fullConnect(false);
