@@ -74,10 +74,12 @@ app.get("/api/connect/:accountId", async (req, res) => {
       latestPrices[accountId] = { bid: event.bid, ask: event.ask };
     });
     connection.on("ProtoOAExecutionEvent", (event) => {
-      lastExecutions[accountId] = event;
+      console.log("EXECUTION EVENT RAW:", JSON.stringify(event));
+      lastExecutions[accountId] = Object.assign({ eventType: "execution" }, event);
     });
     connection.on("ProtoOAOrderErrorEvent", (event) => {
-      lastExecutions[accountId] = { error: true, description: event.description || event.errorCode };
+      console.log("ORDER ERROR EVENT RAW:", JSON.stringify(event));
+      lastExecutions[accountId] = Object.assign({ error: true, eventType: "orderError" }, event);
     });
 
     const symbolsData = await connection.sendCommand("ProtoOASymbolsListReq", { ctidTraderAccountId: accountId });
