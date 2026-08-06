@@ -32,6 +32,7 @@
   #tradingview_chart { height: 100%; width: 100%; }
   #trade-overlay { height: 64px; background: #0a0a0a; border-top: 1px solid #1a1a1a; display: flex; align-items: center; padding: 0 10px; gap: 8px; flex-shrink: 0; }
   .trade-btn { flex: 1; height: 44px; border: none; border-radius: 6px; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
+  .trade-btn:disabled { opacity: 0.5; }
   #sell-btn { background: #2962ff; color: #fff; }
   #buy-btn { background: #d4af37; color: #000; }
   .trade-btn .px { font-size: 10px; opacity: 0.85; font-weight: 500; }
@@ -54,6 +55,14 @@
   .position-row .bottom { display: flex; justify-content: space-between; color: #777; font-size: 11px; margin-top: 4px; }
   .side-buy { color: #d4af37; }
   .side-sell { color: #2962ff; }
+  #trade-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; }
+  #trade-modal-overlay.show { display: flex; }
+  #trade-modal { background: #0a0a0a; border: 1px solid #333; border-radius: 12px; padding: 20px; width: 85%; max-width: 340px; }
+  #trade-modal h3 { color: #fff; font-size: 15px; margin-bottom: 10px; }
+  #trade-modal p { color: #ccc; font-size: 13px; line-height: 1.5; }
+  #trade-modal .modal-close { margin-top: 16px; width: 100%; padding: 12px; background: #d4af37; color: #000; border: none; border-radius: 8px; font-weight: 700; }
+  .spinner { width: 20px; height: 20px; border: 2px solid #333; border-top-color: #d4af37; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   #bottom-nav { height: 60px; background: #000000; border-top: 1px solid #1a1a1a; display: flex; flex-shrink: 0; z-index: 20; }
   .nav-btn { flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #666; }
   .nav-btn.active { color: #d4af37; }
@@ -135,6 +144,15 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg><span>ACCOUNT</span></button>
 </div>
 
+<div id="trade-modal-overlay">
+  <div id="trade-modal">
+    <div id="modal-spinner" class="spinner"></div>
+    <h3 id="modal-title">Placing order...</h3>
+    <p id="modal-body">Waiting for confirmation from FxPro.</p>
+    <button class="modal-close" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
 <script src="https://s3.tradingview.com/tv.js"></script>
 <script>
   let currentAccountType = 'demo';
@@ -190,6 +208,16 @@
   function showButtons({ connect, retry }) {
     document.getElementById('connect-btn').classList.toggle('hidden', !connect);
     document.getElementById('retry-btn').classList.toggle('hidden', !retry);
+  }
+
+  function showModal(title, body, spinning) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').textContent = body;
+    document.getElementById('modal-spinner').style.display = spinning ? 'block' : 'none';
+    document.getElementById('trade-modal-overlay').classList.add('show');
+  }
+  function closeModal() {
+    document.getElementById('trade-modal-overlay').classList.remove('show');
   }
 
   async function loadSymbols(accountId) {
@@ -266,7 +294,7 @@
     } catch (e) {}
   }
 
-  async function placeTrade(direction) {
+  async function pollExecutionResult(accountId) {
     const id = accountsByType[currentAccountType];
     if (!id) {
       alert('Not connected yet. Go to the Account tab, connect, and wait for it to finish before trading.');
@@ -282,6 +310,11 @@
       return;
     }
     const volume = parseFloat(document.getElementById('volume-input').value) || 0.01;
+
+    showModal('Placing order...', 'Sending ' + direction.toUpperCase() + ' 0.01 lots EURUSD to FxPro.', true);
+    document.getElementById('buy-btn').disabled = true;
+    document.getElementById('sell-btn').disabled = true;
+
     try {
       const res = await fetch('/api/trade', {
         method: 'POST',
@@ -290,13 +323,28 @@
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-        alert('Trade rejected: ' + (data.error || 'unknown error'));
+        showModal('Trade rejected', data.error || 'Unknown error from server.', false);
         return;
       }
-      alert((direction === 'buy' ? 'BUY' : 'SELL') + ' order sent. Checking Positions tab for confirmation...');
-      setTimeout(() => switchTab('positions'), 2000);
+
+      showModal('Waiting for confirmation...', 'Order sent. Waiting for FxPro to confirm fill.', true);
+      const execution = await pollExecutionResult(id);
+
+      if (!execution) {
+        showModal('No confirmation received', 'The order was sent, but no confirmation arrived within 7 seconds. Check the Positions tab manually.', false);
+      } else if (execution.error) {
+        const reason = execution.errorCode || execution.description || JSON.stringify(execution);
+        showModal('Order rejected by broker', reason, false);
+      } else {
+        const status = execution.executionType || execution.order?.orderStatus || 'unknown';
+        showModal('Execution received', 'Status: ' + status + '\n\nCheck the Positions tab to confirm.', false);
+      }
+      loadPositionsAndOrders();
     } catch (e) {
-      alert('Trade failed: ' + e.message);
+      showModal('Trade failed', e.message, false);
+    } finally {
+      document.getElementById('buy-btn').disabled = false;
+      document.getElementById('sell-btn').disabled = false;
     }
   }
 
@@ -346,7 +394,7 @@
       const connRes = await fetch('/api/connect/' + id + '?live=' + (type === 'live'));
       const connData = await connRes.json();
       if (!connRes.ok || connData.error) {
-        if (connData.error && connData.error.includes('AccountAuthReq')) {
+        if (connData.error && (connData.error.includes('AccountAuthReq') || connData.error.includes('Not connected'))) {
           setBanner('Session expired after server idle. Please reconnect.', 'error');
           showButtons({ connect: true, retry: false });
         } else {

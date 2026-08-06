@@ -61,6 +61,7 @@ app.get("/api/accounts", async (req, res) => {
 app.get("/api/connect/:accountId", async (req, res) => {
   const accountId = req.params.accountId;
   const isLive = req.query.live === "true";
+  if (!accessToken) return res.status(401).json({ error: "Not connected. Please visit /login again." });
   try {
     const connection = new CTraderConnection({ host: isLive ? "live.ctraderapi.com" : "demo.ctraderapi.com", port: 5035 });
     await connection.open();
@@ -70,31 +71,28 @@ app.get("/api/connect/:accountId", async (req, res) => {
     setInterval(() => connection.sendHeartbeat(), 25000);
 
     connection.on("ProtoOASpotEvent", (event) => {
-      console.log("Spot event raw:", event);
-      console.log("Spot event keys:", Object.keys(event));
-      console.log("bid value:", event.bid, "ask value:", event.ask);
       latestPrices[accountId] = { bid: event.bid, ask: event.ask, symbolId: event.symbolId };
     });
 
     connection.on("ProtoOAExecutionEvent", (event) => {
-      console.log("Execution event raw:", event);
+      console.log("Execution event:", JSON.stringify(event, null, 2));
       lastExecutions[accountId] = event;
+    });
+
+    connection.on("ProtoOAOrderErrorEvent", (event) => {
+      console.log("Order error event:", JSON.stringify(event, null, 2));
+      lastExecutions[accountId] = { error: true, ...event };
     });
 
     try {
       const symbolsData = await connection.sendCommand("ProtoOASymbolsListReq", { ctidTraderAccountId: accountId });
       const list = symbolsData.symbol || symbolsData.symbols || [];
-      console.log("Symbols found:", list.length);
       const eurusd = list.find(s => s.symbolName === "EURUSD");
       if (eurusd) {
-        console.log("EURUSD symbolId:", eurusd.symbolId);
         await connection.sendCommand("ProtoOASubscribeSpotsReq", {
           ctidTraderAccountId: accountId,
           symbolId: [eurusd.symbolId],
         });
-        console.log("Spot subscription request sent successfully");
-      } else {
-        console.log("EURUSD not found in symbol list");
       }
     } catch (subErr) {
       console.log("Spot subscription failed:", subErr.message || subErr);
@@ -151,6 +149,7 @@ app.post("/api/trade", async (req, res) => {
   const { accountId, symbolId, side, volume } = req.body;
   const connection = connections[accountId];
   if (!connection) return res.status(400).json({ error: "Account not connected." });
+  lastExecutions[accountId] = null;
   try {
     const order = await connection.sendCommand("ProtoOANewOrderReq", {
       ctidTraderAccountId: accountId, symbolId, orderType: "MARKET", tradeSide: side, volume: volume * 100,
