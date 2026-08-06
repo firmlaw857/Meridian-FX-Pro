@@ -18,6 +18,19 @@ let connections = {};
 let latestPrices = {};
 let lastExecutions = {};
 
+function dumpAllFields(obj) {
+  const result = {};
+  const keys = Object.getOwnPropertyNames(obj);
+  keys.forEach(k => {
+    let val = obj[k];
+    if (val === undefined) val = "(undefined)";
+    if (val === null) val = "(null)";
+    if (typeof val === "function") val = "(function)";
+    result[k] = val;
+  });
+  return result;
+}
+
 app.get("/login", (req, res) => {
   const url = `https://id.ctrader.com/my/settings/openapi/grantingaccess/?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=trading`;
   res.redirect(url);
@@ -74,12 +87,15 @@ app.get("/api/connect/:accountId", async (req, res) => {
       latestPrices[accountId] = { bid: event.bid, ask: event.ask };
     });
     connection.on("ProtoOAExecutionEvent", (event) => {
-      console.log("EXECUTION EVENT RAW:", JSON.stringify(event));
-      lastExecutions[accountId] = Object.assign({ eventType: "execution" }, event);
+      const dump = dumpAllFields(event);
+      console.log("EXECUTION EVENT FIELDS:", JSON.stringify(dump));
+      lastExecutions[accountId] = dump;
     });
     connection.on("ProtoOAOrderErrorEvent", (event) => {
-      console.log("ORDER ERROR EVENT RAW:", JSON.stringify(event));
-      lastExecutions[accountId] = Object.assign({ error: true, eventType: "orderError" }, event);
+      const dump = dumpAllFields(event);
+      dump.error = true;
+      console.log("ORDER ERROR EVENT FIELDS:", JSON.stringify(dump));
+      lastExecutions[accountId] = dump;
     });
 
     const symbolsData = await connection.sendCommand("ProtoOASymbolsListReq", { ctidTraderAccountId: accountId });
@@ -134,7 +150,7 @@ app.post("/api/trade", async (req, res) => {
     const order = await connection.sendCommand("ProtoOANewOrderReq", {
       ctidTraderAccountId: accountId, symbolId, orderType: "MARKET", tradeSide: side, volume: volume * 100,
     });
-    res.json({ sent: true, ackResponse: order });
+    res.json({ sent: true, ackResponse: dumpAllFields(order) });
   } catch (err) {
     res.status(500).json({ error: err.message || String(err) });
   }
