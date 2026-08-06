@@ -61,7 +61,7 @@
     <div class="panel">
       <div class="banner" id="status-text">Checking...</div>
       <button class="action" id="connect-btn" style="display:none" onclick="location.href='/login'">Connect FxPro Broker</button>
-      <button class="action" id="retry-btn" style="display:none" onclick="init()">Retry</button>
+      <button class="action" id="retry-btn" style="display:none" onclick="fullConnect(true)">Retry</button>
       <div class="row"><span>Account</span><span id="acc-label">Demo</span></div>
       <div class="row"><span>Balance</span><span id="bal">--</span></div>
       <div class="row"><span>Leverage</span><span id="lev">--</span></div>
@@ -85,6 +85,7 @@ var accountType = 'demo';
 var accounts = { demo: null, live: null };
 var eurusdId = null;
 var priceTimer = null;
+var connectedType = null;
 
 new TradingView.widget({
   autosize: true, symbol: "FX:EURUSD", interval: "60", theme: "dark", style: "1",
@@ -105,7 +106,13 @@ function showTab(name) {
   document.getElementById('tab-' + name).classList.add('active');
   document.querySelectorAll('.navbtn').forEach(function(b) { b.classList.remove('active'); });
   event.target.classList.add('active');
-  if (name === 'account') init();
+  if (name === 'account') {
+    if (connectedType === accountType) {
+      refreshBalance();
+    } else {
+      fullConnect(false);
+    }
+  }
   if (name === 'positions') loadPositions();
 }
 
@@ -114,10 +121,14 @@ function setAccountType(type) {
   document.querySelectorAll('#account-switch button').forEach(function(b) { b.classList.remove('active'); });
   document.querySelector('#account-switch .' + type).classList.add('active');
   document.getElementById('acc-label').textContent = type === 'demo' ? 'Demo' : 'Live';
-  connectAccount(type);
+  if (connectedType !== type) {
+    fullConnect(false);
+  } else {
+    refreshBalance();
+  }
 }
 
-async function init() {
+async function fullConnect(forceRetry) {
   var statusEl = document.getElementById('status-text');
   var connectBtn = document.getElementById('connect-btn');
   var retryBtn = document.getElementById('retry-btn');
@@ -140,43 +151,41 @@ async function init() {
     return;
   }
 
-  var accRes = await fetch('/api/accounts').catch(function() { return null; });
-  if (!accRes || !accRes.ok) {
-    statusEl.className = 'banner err';
-    statusEl.textContent = 'Session expired. Please reconnect.';
-    connectBtn.style.display = 'block';
-    return;
+  if (!accounts.demo && !accounts.live) {
+    var accRes = await fetch('/api/accounts').catch(function() { return null; });
+    if (!accRes || !accRes.ok) {
+      statusEl.className = 'banner err';
+      statusEl.textContent = 'Session expired. Please reconnect.';
+      connectBtn.style.display = 'block';
+      return;
+    }
+    var accData = await accRes.json();
+    var list = accData.accounts || accData.ctidTraderAccount || [];
+    list.forEach(function(a) {
+      var id = a.ctidTraderAccountId || a.accountId || a.id;
+      var isLive = a.isLive === true;
+      if (id) accounts[isLive ? 'live' : 'demo'] = id;
+    });
   }
-  var accData = await accRes.json();
-  var list = accData.accounts || accData.ctidTraderAccount || [];
-  list.forEach(function(a) {
-    var id = a.ctidTraderAccountId || a.accountId || a.id;
-    var isLive = a.isLive === true;
-    if (id) accounts[isLive ? 'live' : 'demo'] = id;
-  });
 
-  connectAccount(accountType);
-}
-
-async function connectAccount(type) {
-  var id = accounts[type];
-  var statusEl = document.getElementById('status-text');
+  var id = accounts[accountType];
   if (!id) {
     statusEl.className = 'banner err';
-    statusEl.textContent = 'No ' + type + ' account found.';
+    statusEl.textContent = 'No ' + accountType + ' account found.';
     return;
   }
-  statusEl.textContent = 'Connecting to ' + type + ' account...';
+  statusEl.textContent = 'Connecting to ' + accountType + ' account...';
 
-  var res = await fetch('/api/connect/' + id + '?live=' + (type === 'live')).catch(function() { return null; });
+  var res = await fetch('/api/connect/' + id + '?live=' + (accountType === 'live')).catch(function() { return null; });
   if (!res || !res.ok) {
     statusEl.className = 'banner err';
     statusEl.textContent = 'Connection failed. Try Retry.';
-    document.getElementById('retry-btn').style.display = 'block';
+    retryBtn.style.display = 'block';
     return;
   }
   var data = await res.json();
   eurusdId = data.eurusdSymbolId;
+  connectedType = accountType;
 
   if (priceTimer) clearInterval(priceTimer);
   priceTimer = setInterval(async function() {
@@ -189,6 +198,14 @@ async function connectAccount(type) {
     }
   }, 2000);
 
+  statusEl.className = 'banner ok';
+  statusEl.textContent = 'Connected to FxPro ' + accountType + ' account.';
+  refreshBalance();
+}
+
+async function refreshBalance() {
+  var id = accounts[accountType];
+  if (!id) return;
   var balRes = await fetch('/api/balance/' + id).catch(function() { return null; });
   if (balRes && balRes.ok) {
     var balData = await balRes.json();
@@ -198,9 +215,9 @@ async function connectAccount(type) {
       document.getElementById('lev').textContent = trader.leverageInCents ? (trader.leverageInCents / 100) + 'x' : '--';
     }
   }
-
+  var statusEl = document.getElementById('status-text');
   statusEl.className = 'banner ok';
-  statusEl.textContent = 'Connected to FxPro ' + type + ' account.';
+  statusEl.textContent = 'Connected to FxPro ' + accountType + ' account.';
 }
 
 async function loadPositions() {
@@ -222,7 +239,7 @@ async function loadPositions() {
 
 async function doTrade(side) {
   var id = accounts[accountType];
-  if (!id) { alert('Connect first from the Account tab.'); return; }
+  if (!id || connectedType !== accountType) { alert('Connect first from the Account tab.'); return; }
   if (!eurusdId) { alert('Symbol not ready yet. Go to Account tab and wait for connection.'); return; }
   if (accountType === 'live') {
     if (!confirm('LIVE ACCOUNT - real money. Place ' + side + ' order?')) return;
@@ -244,7 +261,7 @@ async function doTrade(side) {
   alert(side + ' order sent. Check Positions tab in a few seconds.');
 }
 
-init();
+fullConnect(false);
 </script>
 
 </body>
