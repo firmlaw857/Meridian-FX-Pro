@@ -159,7 +159,7 @@ app.post("/api/trade", async (req, res) => {
   lastExecutions[accountId] = null;
   try {
     const order = await connection.sendCommand("ProtoOANewOrderReq", {
-      ctidTraderAccountId: accountId, symbolId, orderType: "MARKET", tradeSide: side, volume: volume * 100000,
+      ctidTraderAccountId: accountId, symbolId, orderType: "MARKET", tradeSide: side, volume: volume * 10000000,
     });
     res.json({ sent: true, ackResponse: dumpAllFields(order) });
   } catch (err) {
