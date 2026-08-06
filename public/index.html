@@ -4,462 +4,247 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Meridian FX Pro</title>
-<link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#000000">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="Meridian FX">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; background: #000000; overflow: hidden; }
-  body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; display: flex; flex-direction: column; }
-  #topbar { height: 52px; background: #000000; border-bottom: 1px solid #d4af37; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; flex-shrink: 0; z-index: 20; }
-  .logo { color: #ffffff; font-size: 17px; font-weight: 700; letter-spacing: 1.5px; display: flex; align-items: center; gap: 6px; }
-  .logo span.fx { color: #d4af37; }
-  .logo .dot { width: 7px; height: 7px; border-radius: 50%; background: #2962ff; box-shadow: 0 0 6px #2962ff; }
-  #account-switch { display: flex; background: #111111; border: 1px solid #222; border-radius: 20px; overflow: hidden; font-size: 11px; font-weight: 700; }
-  #account-switch button { background: none; border: none; color: #888; padding: 6px 12px; font-weight: 700; letter-spacing: 0.5px; font-size: 11px; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: #000; overflow: hidden; }
+  body { font-family: Arial, sans-serif; display: flex; flex-direction: column; }
+  #topbar { height: 52px; background: #000; border-bottom: 1px solid #d4af37; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; }
+  .logo { color: #fff; font-weight: 700; letter-spacing: 1px; }
+  .logo span { color: #d4af37; }
+  #account-switch button { background: #111; border: 1px solid #333; color: #888; padding: 6px 12px; font-weight: 700; font-size: 11px; }
   #account-switch button.active.demo { background: #2962ff; color: #fff; }
   #account-switch button.active.live { background: #d4af37; color: #000; }
-  #main-content { flex: 1; overflow: hidden; position: relative; }
-  .tab-panel { display: none; height: 100%; width: 100%; }
-  .tab-panel.active { display: block; }
-  #tab-chart { display: none; flex-direction: column; }
-  #tab-chart.active { display: flex; }
-  #chart-container { flex: 1; width: 100%; min-height: 0; }
-  #tradingview_chart { height: 100%; width: 100%; }
-  #trade-overlay { height: 64px; background: #0a0a0a; border-top: 1px solid #1a1a1a; display: flex; align-items: center; padding: 0 10px; gap: 8px; flex-shrink: 0; }
-  .trade-btn { flex: 1; height: 44px; border: none; border-radius: 6px; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
-  .trade-btn:disabled { opacity: 0.5; }
+  #main { flex: 1; overflow: hidden; position: relative; }
+  .tab { display: none; height: 100%; }
+  .tab.active { display: flex; flex-direction: column; }
+  #chart-box { flex: 1; }
+  #tradingview_chart { height: 100%; }
+  #trade-bar { height: 64px; background: #0a0a0a; display: flex; align-items: center; padding: 0 10px; gap: 8px; }
+  .trade-btn { flex: 1; height: 44px; border: none; border-radius: 6px; font-weight: 700; }
   #sell-btn { background: #2962ff; color: #fff; }
   #buy-btn { background: #d4af37; color: #000; }
-  .trade-btn .px { font-size: 10px; opacity: 0.85; font-weight: 500; }
-  #volume-input { width: 64px; height: 44px; background: #111; border: 1px solid #333; color: #fff; text-align: center; border-radius: 6px; font-size: 13px; }
-  .panel-header { height: 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #1a1a1a; color: #fff; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; }
-  .panel-body { height: calc(100% - 42px); overflow-y: auto; }
-  .empty-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #444; gap: 10px; }
-  .empty-state svg { opacity: 0.4; }
-  .empty-state p { font-size: 13px; color: #555; }
-  .status-banner { margin: 14px; padding: 12px 14px; background: #14110a; border: 1px solid #3a2f14; border-radius: 8px; color: #d4af37; font-size: 12px; line-height: 1.5; }
-  .status-banner.connected { background: #0a1410; border-color: #14392a; color: #4ade80; }
-  .status-banner.error { background: #1a0a0a; border-color: #3a1414; color: #f87171; }
-  #connect-btn, #retry-btn { display: block; margin: 0 14px 14px 14px; padding: 14px; background: #d4af37; color: #000; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; letter-spacing: 0.5px; text-align: center; }
-  #connect-btn.hidden, #retry-btn.hidden { display: none; }
-  .account-row { display: flex; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #131313; color: #ccc; font-size: 13px; }
-  .account-row span.label { color: #777; }
-  .account-row span.value { color: #fff; font-weight: 600; }
-  .position-row { padding: 12px 16px; border-bottom: 1px solid #131313; }
-  .position-row .top { display: flex; justify-content: space-between; color: #fff; font-size: 14px; font-weight: 700; }
-  .position-row .bottom { display: flex; justify-content: space-between; color: #777; font-size: 11px; margin-top: 4px; }
-  .side-buy { color: #d4af37; }
-  .side-sell { color: #2962ff; }
-  #trade-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; }
-  #trade-modal-overlay.show { display: flex; }
-  #trade-modal { background: #0a0a0a; border: 1px solid #333; border-radius: 12px; padding: 20px; width: 85%; max-width: 340px; }
-  #trade-modal h3 { color: #fff; font-size: 15px; margin-bottom: 10px; }
-  #trade-modal p { color: #ccc; font-size: 13px; line-height: 1.5; }
-  #trade-modal .modal-close { margin-top: 16px; width: 100%; padding: 12px; background: #d4af37; color: #000; border: none; border-radius: 8px; font-weight: 700; }
-  .spinner { width: 20px; height: 20px; border: 2px solid #333; border-top-color: #d4af37; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  #bottom-nav { height: 60px; background: #000000; border-top: 1px solid #1a1a1a; display: flex; flex-shrink: 0; z-index: 20; }
-  .nav-btn { flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #666; }
-  .nav-btn.active { color: #d4af37; }
-  .nav-btn svg { width: 20px; height: 20px; }
-  .nav-btn span { font-size: 9px; letter-spacing: 0.4px; font-weight: 600; }
+  #vol { width: 60px; height: 44px; text-align: center; background: #111; color: #fff; border: 1px solid #333; }
+  .panel { padding: 16px; color: #fff; overflow-y: auto; height: 100%; }
+  .banner { margin-bottom: 14px; padding: 12px; background: #14110a; border: 1px solid #3a2f14; border-radius: 8px; color: #d4af37; font-size: 13px; }
+  .banner.ok { background: #0a1410; border-color: #14392a; color: #4ade80; }
+  .banner.err { background: #1a0a0a; border-color: #3a1414; color: #f87171; }
+  button.action { display: block; width: 100%; padding: 12px; background: #d4af37; color: #000; border: none; border-radius: 8px; font-weight: 700; margin-bottom: 10px; }
+  .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #222; font-size: 13px; }
+  #nav { height: 58px; background: #000; border-top: 1px solid #222; display: flex; }
+  .navbtn { flex: 1; background: none; border: none; color: #666; font-size: 10px; }
+  .navbtn.active { color: #d4af37; }
 </style>
 </head>
 <body>
 
 <div id="topbar">
-  <div class="logo"><div class="dot"></div>MERIDIAN <span class="fx">FX</span> PRO</div>
+  <div class="logo">MERIDIAN <span>FX</span> PRO</div>
   <div id="account-switch">
-    <button class="active demo" onclick="switchAccount('demo')">DEMO</button>
-    <button class="live" onclick="switchAccount('live')">LIVE</button>
+    <button class="active demo" onclick="setAccountType('demo')">DEMO</button>
+    <button class="live" onclick="setAccountType('live')">LIVE</button>
   </div>
 </div>
 
-<div id="main-content">
-  <div id="tab-chart" class="tab-panel active">
-    <div id="chart-container"><div id="tradingview_chart"></div></div>
-    <div id="trade-overlay">
-      <button class="trade-btn" id="sell-btn" onclick="placeTrade('sell')">SELL <span class="px" id="sell-price">--</span></button>
-      <input id="volume-input" type="number" value="0.01" step="0.01" min="0.01">
-      <button class="trade-btn" id="buy-btn" onclick="placeTrade('buy')">BUY <span class="px" id="buy-price">--</span></button>
+<div id="main">
+  <div id="tab-chart" class="tab active">
+    <div id="chart-box"><div id="tradingview_chart"></div></div>
+    <div id="trade-bar">
+      <button class="trade-btn" id="sell-btn" onclick="doTrade('SELL')">SELL <span id="sell-px"></span></button>
+      <input id="vol" type="number" value="0.01" step="0.01">
+      <button class="trade-btn" id="buy-btn" onclick="doTrade('BUY')">BUY <span id="buy-px"></span></button>
     </div>
   </div>
 
-  <div id="tab-positions" class="tab-panel">
-    <div class="panel-header"><span>POSITIONS</span><span id="positions-count">0</span></div>
-    <div class="panel-body" id="positions-body">
-      <div class="empty-state" id="positions-empty">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
-        <p>No open positions</p></div>
-    </div>
-  </div>
-
-  <div id="tab-orders" class="tab-panel">
-    <div class="panel-header"><span>PENDING ORDERS</span><span id="orders-count">0</span></div>
-    <div class="panel-body" id="orders-body">
-      <div class="empty-state" id="orders-empty">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-        <p>No pending orders</p></div>
-    </div>
-  </div>
-
-  <div id="tab-history" class="tab-panel">
-    <div class="panel-header"><span>HISTORY</span></div>
-    <div class="panel-body"><div class="empty-state">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l4 2"/></svg>
-      <p>No trade history</p></div></div>
-  </div>
-
-  <div id="tab-account" class="tab-panel">
-    <div class="panel-header"><span>ACCOUNT</span></div>
-    <div class="panel-body">
-      <div class="status-banner" id="conn-status">Checking broker connection...</div>
-      <button id="connect-btn" class="hidden" onclick="window.location.href='/login'">Connect FxPro Broker</button>
-      <button id="retry-btn" class="hidden" onclick="refreshAll()">Retry Connection</button>
-      <div class="account-row"><span class="label">Account</span><span class="value" id="acc-type-label">Demo (FxPro cTrader)</span></div>
-      <div class="account-row"><span class="label">Balance</span><span class="value" id="val-balance">--</span></div>
-      <div class="account-row"><span class="label">Equity</span><span class="value" id="val-equity">--</span></div>
-      <div class="account-row"><span class="label">Margin</span><span class="value" id="val-margin">--</span></div>
-      <div class="account-row"><span class="label">Free Margin</span><span class="value" id="val-freemargin">--</span></div>
-      <div class="account-row"><span class="label">Leverage</span><span class="value" id="val-leverage">--</span></div>
+  <div id="tab-positions" class="tab"><div class="panel" id="positions-panel">No positions loaded yet.</div></div>
+  <div id="tab-account" class="tab">
+    <div class="panel">
+      <div class="banner" id="status-text">Checking...</div>
+      <button class="action" id="connect-btn" style="display:none" onclick="location.href='/login'">Connect FxPro Broker</button>
+      <button class="action" id="retry-btn" style="display:none" onclick="init()">Retry</button>
+      <div class="row"><span>Account</span><span id="acc-label">Demo</span></div>
+      <div class="row"><span>Balance</span><span id="bal">--</span></div>
+      <div class="row"><span>Leverage</span><span id="lev">--</span></div>
     </div>
   </div>
 </div>
 
-<div id="bottom-nav">
-  <button class="nav-btn active" data-tab="chart" onclick="switchTab('chart')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5M4 19h16"/><path d="M8 15l3-4 3 3 4-6"/></svg><span>CHART</span></button>
-  <button class="nav-btn" data-tab="positions" onclick="switchTab('positions')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg><span>POSITIONS</span></button>
-  <button class="nav-btn" data-tab="orders" onclick="switchTab('orders')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span>ORDERS</span></button>
-  <button class="nav-btn" data-tab="history" onclick="switchTab('history')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l4 2"/></svg><span>HISTORY</span></button>
-  <button class="nav-btn" data-tab="account" onclick="switchTab('account')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg><span>ACCOUNT</span></button>
-</div>
-
-<div id="trade-modal-overlay">
-  <div id="trade-modal">
-    <div id="modal-spinner" class="spinner"></div>
-    <h3 id="modal-title">Placing order...</h3>
-    <p id="modal-body">Waiting for confirmation from FxPro.</p>
-    <button class="modal-close" onclick="closeModal()">Close</button>
-  </div>
+<div id="nav">
+  <button class="navbtn active" onclick="showTab('chart')">CHART</button>
+  <button class="navbtn" onclick="showTab('positions')">POSITIONS</button>
+  <button class="navbtn" onclick="showTab('account')">ACCOUNT</button>
 </div>
 
 <script src="https://s3.tradingview.com/tv.js"></script>
 <script>
-  window.onerror = function(msg, url, line, col, error) {
-    alert('JS ERROR: ' + msg + ' at line ' + line + ':' + col);
-    return false;
-  };
-  let currentAccountType = 'demo';
-  let accountsByType = { demo: null, live: null };
-  let symbolMap = {};
-  let symbolNameById = {};
-  let priceInterval = null;
+window.onerror = function(msg, url, line, col) {
+  alert('JS ERROR: ' + msg + ' (line ' + line + ')');
+};
 
-  new TradingView.widget({
-    autosize: true, symbol: "FX:EURUSD", interval: "60", timezone: "Etc/UTC", theme: "dark", style: "1", locale: "en",
-    toolbar_bg: "#000000", enable_publishing: false, allow_symbol_change: true, hide_top_toolbar: false,
-    hide_legend: false, save_image: false, container_id: "tradingview_chart",
-    overrides: {
-      "paneProperties.background": "#000000", "paneProperties.backgroundType": "solid",
-      "paneProperties.vertGridProperties.color": "#111111", "paneProperties.horzGridProperties.color": "#111111",
-      "scalesProperties.textColor": "#ffffff", "scalesProperties.lineColor": "#222222",
-      "mainSeriesProperties.candleStyle.upColor": "#d4af37", "mainSeriesProperties.candleStyle.downColor": "#2962ff",
-      "mainSeriesProperties.candleStyle.borderUpColor": "#d4af37", "mainSeriesProperties.candleStyle.borderDownColor": "#2962ff",
-      "mainSeriesProperties.candleStyle.wickUpColor": "#d4af37", "mainSeriesProperties.candleStyle.wickDownColor": "#2962ff"
-    },
-    loading_screen: { backgroundColor: "#000000", foregroundColor: "#d4af37" }
+var accountType = 'demo';
+var accounts = { demo: null, live: null };
+var eurusdId = null;
+var priceTimer = null;
+
+new TradingView.widget({
+  autosize: true, symbol: "FX:EURUSD", interval: "60", theme: "dark", style: "1",
+  toolbar_bg: "#000000", container_id: "tradingview_chart",
+  overrides: {
+    "paneProperties.background": "#000000",
+    "mainSeriesProperties.candleStyle.upColor": "#d4af37",
+    "mainSeriesProperties.candleStyle.downColor": "#2962ff",
+    "mainSeriesProperties.candleStyle.borderUpColor": "#d4af37",
+    "mainSeriesProperties.candleStyle.borderDownColor": "#2962ff",
+    "mainSeriesProperties.candleStyle.wickUpColor": "#d4af37",
+    "mainSeriesProperties.candleStyle.wickDownColor": "#2962ff"
+  }
+});
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelectorAll('.navbtn').forEach(function(b) { b.classList.remove('active'); });
+  event.target.classList.add('active');
+  if (name === 'account') init();
+  if (name === 'positions') loadPositions();
+}
+
+function setAccountType(type) {
+  accountType = type;
+  document.querySelectorAll('#account-switch button').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelector('#account-switch .' + type).classList.add('active');
+  document.getElementById('acc-label').textContent = type === 'demo' ? 'Demo' : 'Live';
+  connectAccount(type);
+}
+
+async function init() {
+  var statusEl = document.getElementById('status-text');
+  var connectBtn = document.getElementById('connect-btn');
+  var retryBtn = document.getElementById('retry-btn');
+  statusEl.className = 'banner';
+  statusEl.textContent = 'Checking connection...';
+  connectBtn.style.display = 'none';
+  retryBtn.style.display = 'none';
+
+  var statusRes = await fetch('/api/status').catch(function() { return null; });
+  if (!statusRes) {
+    statusEl.className = 'banner err';
+    statusEl.textContent = 'Cannot reach server. It may be waking up, wait 30 seconds and retry.';
+    retryBtn.style.display = 'block';
+    return;
+  }
+  var statusData = await statusRes.json();
+  if (!statusData.connected) {
+    statusEl.textContent = 'Not connected to FxPro yet.';
+    connectBtn.style.display = 'block';
+    return;
+  }
+
+  var accRes = await fetch('/api/accounts').catch(function() { return null; });
+  if (!accRes || !accRes.ok) {
+    statusEl.className = 'banner err';
+    statusEl.textContent = 'Session expired. Please reconnect.';
+    connectBtn.style.display = 'block';
+    return;
+  }
+  var accData = await accRes.json();
+  var list = accData.accounts || accData.ctidTraderAccount || [];
+  list.forEach(function(a) {
+    var id = a.ctidTraderAccountId || a.accountId || a.id;
+    var isLive = a.isLive === true;
+    if (id) accounts[isLive ? 'live' : 'demo'] = id;
   });
 
-  function switchTab(tab) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('tab-' + tab).classList.add('active');
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector('.nav-btn[data-tab="' + tab + '"]').classList.add('active');
-    if (tab === 'account') refreshAll();
-    if (tab === 'positions' || tab === 'orders') loadPositionsAndOrders();
+  connectAccount(accountType);
+}
+
+async function connectAccount(type) {
+  var id = accounts[type];
+  var statusEl = document.getElementById('status-text');
+  if (!id) {
+    statusEl.className = 'banner err';
+    statusEl.textContent = 'No ' + type + ' account found.';
+    return;
   }
+  statusEl.textContent = 'Connecting to ' + type + ' account...';
 
-  function switchAccount(type) {
-    currentAccountType = type;
-    document.querySelectorAll('#account-switch button').forEach(b => b.classList.remove('active'));
-    document.querySelector('#account-switch .' + type).classList.add('active');
-    document.getElementById('acc-type-label').textContent = type === 'demo' ? 'Demo (FxPro cTrader)' : 'Live (FxPro cTrader)';
-    clearBalanceDisplay();
-    connectAndLoad(type);
+  var res = await fetch('/api/connect/' + id + '?live=' + (type === 'live')).catch(function() { return null; });
+  if (!res || !res.ok) {
+    statusEl.className = 'banner err';
+    statusEl.textContent = 'Connection failed. Try Retry.';
+    document.getElementById('retry-btn').style.display = 'block';
+    return;
   }
+  var data = await res.json();
+  eurusdId = data.eurusdSymbolId;
 
-  function clearBalanceDisplay() {
-    ['val-balance','val-equity','val-margin','val-freemargin','val-leverage'].forEach(id => document.getElementById(id).textContent = '--');
-  }
-
-  function setBanner(text, mode) {
-    const b = document.getElementById('conn-status');
-    b.textContent = text;
-    b.classList.remove('connected', 'error');
-    if (mode) b.classList.add(mode);
-  }
-
-  function showButtons({ connect, retry }) {
-    document.getElementById('connect-btn').classList.toggle('hidden', !connect);
-    document.getElementById('retry-btn').classList.toggle('hidden', !retry);
-  }
-
-  function showModal(title, body, spinning) {
-    document.getElementById('modal-title').textContent = title;
-    document.getElementById('modal-body').textContent = body;
-    document.getElementById('modal-spinner').style.display = spinning ? 'block' : 'none';
-    document.getElementById('trade-modal-overlay').classList.add('show');
-  }
-  function closeModal() {
-    document.getElementById('trade-modal-overlay').classList.remove('show');
-  }
-
-  async function loadSymbols(accountId) {
-    const res = await fetch('/api/symbols/' + accountId);
-    const data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error || 'Failed to load symbols');
-    const list = data.symbol || data.symbols || [];
-    list.forEach(s => {
-      symbolMap[s.symbolName] = s.symbolId;
-      symbolNameById[s.symbolId] = s.symbolName;
-    });
-  }
-
-  function startPricePolling(accountId) {
-    if (priceInterval) clearInterval(priceInterval);
-    priceInterval = setInterval(async () => {
-      try {
-        const res = await fetch('/api/price/' + accountId);
-        const data = await res.json();
-        if (data.bid !== undefined) {
-          document.getElementById('sell-price').textContent = (data.bid / 100000).toFixed(5);
-          document.getElementById('buy-price').textContent = (data.ask / 100000).toFixed(5);
-        }
-      } catch (e) {}
-    }, 2000);
-  }
-
-  async function loadPositionsAndOrders() {
-    const id = accountsByType[currentAccountType];
-    if (!id) return;
-    try {
-      const res = await fetch('/api/positions/' + id);
-      const data = await res.json();
-      if (!res.ok || data.error) return;
-      const positions = data.position || [];
-      const orders = data.order || [];
-
-      const posBody = document.getElementById('positions-body');
-      const posEmpty = document.getElementById('positions-empty');
-      document.getElementById('positions-count').textContent = positions.length;
-      posBody.querySelectorAll('.position-row').forEach(el => el.remove());
-      if (positions.length === 0) {
-        posEmpty.style.display = 'flex';
-      } else {
-        posEmpty.style.display = 'none';
-        positions.forEach(p => {
-          const symName = symbolNameById[p.tradeData?.symbolId] || ('Symbol ' + p.tradeData?.symbolId);
-          const side = p.tradeData?.tradeSide === 'BUY' ? 'side-buy' : 'side-sell';
-          const vol = p.tradeData?.volume ? (p.tradeData.volume / 100).toFixed(2) : '--';
-          const row = document.createElement('div');
-          row.className = 'position-row';
-          row.innerHTML = '<div class="top"><span class="' + side + '">' + (p.tradeData?.tradeSide || '') + ' ' + symName + '</span><span>' + vol + ' lots</span></div>' +
-                           '<div class="bottom"><span>Position ID: ' + p.positionId + '</span></div>';
-          posBody.appendChild(row);
-        });
-      }
-
-      const ordBody = document.getElementById('orders-body');
-      const ordEmpty = document.getElementById('orders-empty');
-      document.getElementById('orders-count').textContent = orders.length;
-      ordBody.querySelectorAll('.position-row').forEach(el => el.remove());
-      if (orders.length === 0) {
-        ordEmpty.style.display = 'flex';
-      } else {
-        ordEmpty.style.display = 'none';
-        orders.forEach(o => {
-          const symName = symbolNameById[o.tradeData?.symbolId] || ('Symbol ' + o.tradeData?.symbolId);
-          const row = document.createElement('div');
-          row.className = 'position-row';
-          row.innerHTML = '<div class="top"><span>' + (o.orderType || '') + ' ' + symName + '</span></div>';
-          ordBody.appendChild(row);
-        });
-      }
-    } catch (e) {}
-  }
-
-  async function pollExecutionResult(accountId) {
-    const id = accountsByType[currentAccountType];
-    if (!id) {
-      alert('Not connected yet. Go to the Account tab, connect, and wait for it to finish before trading.');
-      return;
+  if (priceTimer) clearInterval(priceTimer);
+  priceTimer = setInterval(async function() {
+    var r = await fetch('/api/price/' + id).catch(function() { return null; });
+    if (!r) return;
+    var p = await r.json();
+    if (p.bid) {
+      document.getElementById('sell-px').textContent = (p.bid / 100000).toFixed(5);
+      document.getElementById('buy-px').textContent = (p.ask / 100000).toFixed(5);
     }
-    if (currentAccountType === 'live') {
-      const confirmed = confirm('⚠️ LIVE ACCOUNT — this will place a REAL ' + direction.toUpperCase() + ' order with real money. Continue?');
-      if (!confirmed) return;
-    }
-    const symbolId = symbolMap['EURUSD'];
-    if (!symbolId) {
-      alert('Symbol data not loaded yet. Go to Account tab and reconnect.');
-      return;
-    }
-    const volume = parseFloat(document.getElementById('volume-input').value) || 0.01;
+  }, 2000);
 
-    showModal('Placing order...', 'Sending ' + direction.toUpperCase() + ' 0.01 lots EURUSD to FxPro.', true);
-    document.getElementById('buy-btn').disabled = true;
-    document.getElementById('sell-btn').disabled = true;
-
-    try {
-      const res = await fetch('/api/trade', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: id, symbolId, side: direction.toUpperCase(), volume })
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        showModal('Trade rejected', data.error || 'Unknown error from server.', false);
-        return;
-      }
-
-      showModal('Waiting for confirmation...', 'Order sent. Waiting for FxPro to confirm fill.', true);
-      const execution = await pollExecutionResult(id);
-
-      if (!execution) {
-        showModal('No confirmation received', 'The order was sent, but no confirmation arrived within 7 seconds. Check the Positions tab manually.', false);
-      } else if (execution.error) {
-        const reason = execution.errorCode || execution.description || JSON.stringify(execution);
-        showModal('Order rejected by broker', reason, false);
-      } else {
-        const status = execution.executionType || execution.order?.orderStatus || 'unknown';
-        showModal('Execution received', 'Status: ' + status + '\n\nCheck the Positions tab to confirm.', false);
-      }
-      loadPositionsAndOrders();
-    } catch (e) {
-      showModal('Trade failed', e.message, false);
-    } finally {
-      document.getElementById('buy-btn').disabled = false;
-      document.getElementById('sell-btn').disabled = false;
+  var balRes = await fetch('/api/balance/' + id).catch(function() { return null; });
+  if (balRes && balRes.ok) {
+    var balData = await balRes.json();
+    var trader = balData.trader || balData;
+    if (trader.balance !== undefined) {
+      document.getElementById('bal').textContent = (trader.balance / 100).toFixed(2) + ' USD';
+      document.getElementById('lev').textContent = trader.leverageInCents ? (trader.leverageInCents / 100) + 'x' : '--';
     }
   }
 
-  async function checkConnection() {
-    try {
-      const res = await fetch('/api/status');
-      const data = await res.json();
-      if (data.connected) {
-        setBanner('Broker connected. Loading account data...', null);
-        showButtons({ connect: false, retry: false });
-        return true;
-      } else {
-        setBanner('Broker not connected yet. Tap below to link your FxPro cTrader account.', null);
-        showButtons({ connect: true, retry: false });
-        return false;
-      }
-    } catch (e) {
-      setBanner('Could not reach the server. It may be waking up (can take up to 50 seconds on free hosting) — tap Retry.', 'error');
-      showButtons({ connect: false, retry: true });
-      return false;
-    }
+  statusEl.className = 'banner ok';
+  statusEl.textContent = 'Connected to FxPro ' + type + ' account.';
+}
+
+async function loadPositions() {
+  var id = accounts[accountType];
+  var panel = document.getElementById('positions-panel');
+  if (!id) { panel.textContent = 'Connect first from Account tab.'; return; }
+  var res = await fetch('/api/positions/' + id).catch(function() { return null; });
+  if (!res || !res.ok) { panel.textContent = 'Could not load positions.'; return; }
+  var data = await res.json();
+  var positions = data.position || [];
+  if (positions.length === 0) {
+    panel.textContent = 'No open positions.';
+  } else {
+    panel.innerHTML = positions.map(function(p) {
+      return '<div class="row"><span>' + (p.tradeData ? p.tradeData.tradeSide : '') + ' EURUSD</span><span>ID ' + p.positionId + '</span></div>';
+    }).join('');
   }
+}
 
-  async function loadAccountsList() {
-    const res = await fetch('/api/accounts');
-    const data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error || 'Failed to load accounts');
-    const list = data.accounts || data.ctidTraderAccount || data;
-    if (Array.isArray(list)) {
-      list.forEach(acc => {
-        const id = acc.ctidTraderAccountId || acc.accountId || acc.id;
-        const isLive = acc.isLive === true || acc.live === true;
-        if (id) accountsByType[isLive ? 'live' : 'demo'] = id;
-      });
-    }
+async function doTrade(side) {
+  var id = accounts[accountType];
+  if (!id) { alert('Connect first from the Account tab.'); return; }
+  if (!eurusdId) { alert('Symbol not ready yet. Go to Account tab and wait for connection.'); return; }
+  if (accountType === 'live') {
+    if (!confirm('LIVE ACCOUNT - real money. Place ' + side + ' order?')) return;
   }
+  var volume = parseFloat(document.getElementById('vol').value) || 0.01;
 
-  async function connectAndLoad(type) {
-    const id = accountsByType[type];
-    if (!id) {
-      setBanner('No ' + type + ' account found on this cTrader ID.', 'error');
-      showButtons({ connect: false, retry: true });
-      return;
-    }
-    setBanner('Connecting to ' + type + ' account... (first connection after idle can take up to a minute)', null);
-    try {
-      const connRes = await fetch('/api/connect/' + id + '?live=' + (type === 'live'));
-      const connData = await connRes.json();
-      if (!connRes.ok || connData.error) {
-        if (connData.error && (connData.error.includes('AccountAuthReq') || connData.error.includes('Not connected'))) {
-          setBanner('Session expired after server idle. Please reconnect.', 'error');
-          showButtons({ connect: true, retry: false });
-        } else {
-          setBanner('Connection failed: ' + (connData.error || 'unknown error'), 'error');
-          showButtons({ connect: false, retry: true });
-        }
-        return;
-      }
+  var res = await fetch('/api/trade', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accountId: id, symbolId: eurusdId, side: side, volume: volume })
+  }).catch(function(e) { alert('Network error: ' + e.message); return null; });
 
-      await loadSymbols(id);
-      startPricePolling(id);
-
-      const balRes = await fetch('/api/balance/' + id);
-      const balData = await balRes.json();
-      if (!balRes.ok || balData.error) throw new Error(balData.error || 'Failed to load balance');
-
-      const trader = balData.trader || balData;
-      if (trader && trader.balance !== undefined) {
-        document.getElementById('val-balance').textContent = (trader.balance / 100).toFixed(2) + ' USD';
-        document.getElementById('val-equity').textContent = (trader.balance / 100).toFixed(2) + ' USD';
-        document.getElementById('val-margin').textContent = '0.00 USD';
-        document.getElementById('val-freemargin').textContent = (trader.balance / 100).toFixed(2) + ' USD';
-        document.getElementById('val-leverage').textContent = trader.leverageInCents ? (trader.leverageInCents / 100) + 'x' : '--';
-        setBanner('Broker connected. Meridian FX Pro is linked to your FxPro cTrader account.', 'connected');
-        showButtons({ connect: false, retry: false });
-      } else {
-        setBanner('Connected, but balance data came back in an unexpected format.', 'error');
-        showButtons({ connect: false, retry: true });
-      }
-    } catch (e) {
-      setBanner('Error: ' + e.message, 'error');
-      showButtons({ connect: false, retry: true });
-    }
+  if (!res) return;
+  var data = await res.json();
+  if (!res.ok || data.error) {
+    alert('Trade failed: ' + (data.error || 'unknown error'));
+    return;
   }
+  alert(side + ' order sent. Check Positions tab in a few seconds.');
+}
 
-  async function refreshAll() {
-    setBanner('Checking broker connection...', null);
-    showButtons({ connect: false, retry: false });
-    const connected = await checkConnection();
-    if (!connected) return;
-    try {
-      await loadAccountsList();
-    } catch (e) {
-      setBanner('Error loading accounts: ' + e.message, 'error');
-      showButtons({ connect: false, retry: true });
-      return;
-    }
-    connectAndLoad(currentAccountType);
-  }
-
-  refreshAll();
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(regs => {
-      regs.forEach(reg => reg.unregister());
-    });
-    if (window.caches) {
-      caches.keys().then(names => names.forEach(name => caches.delete(name)));
-    }
-  }
-
+init();
 </script>
 
 </body>
