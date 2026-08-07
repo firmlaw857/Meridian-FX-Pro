@@ -110,6 +110,7 @@ var priceTimer = null;
 var connectedType = null;
 var lastBid = null;
 var lastAsk = null;
+var currentTab = 'chart';
 
 new TradingView.widget({
   autosize: true, symbol: "FX:EURUSD", interval: "60", theme: "dark", style: "1",
@@ -126,6 +127,7 @@ new TradingView.widget({
 });
 
 function showTab(name) {
+  currentTab = name;
   document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
   document.getElementById('tab-' + name).classList.add('active');
   document.querySelectorAll('.navbtn').forEach(function(b) { b.classList.remove('active'); });
@@ -221,6 +223,7 @@ async function fullConnect(forceRetry) {
       lastAsk = p.ask / 100000;
       document.getElementById('sell-px').textContent = lastBid.toFixed(5);
       document.getElementById('buy-px').textContent = lastAsk.toFixed(5);
+      if (currentTab === 'positions') loadPositions();
     }
   }, 2000);
 
