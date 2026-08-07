@@ -32,6 +32,17 @@
   .banner.err { background: #1a0a0a; border-color: #3a1414; color: #f87171; }
   button.action { display: block; width: 100%; padding: 12px; background: #d4af37; color: #000; border: none; border-radius: 8px; font-weight: 700; margin-bottom: 10px; }
   .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #222; font-size: 13px; }
+  #pos-summary { display: flex; justify-content: space-between; background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+  #pos-summary .stat { text-align: center; flex: 1; }
+  #pos-summary .stat .label { color: #777; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  #pos-summary .stat .value { font-size: 16px; font-weight: 700; margin-top: 2px; }
+  .pos-row { padding: 12px 0; border-bottom: 1px solid #1a1a1a; }
+  .pos-row .top { display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; }
+  .pos-row .bottom { display: flex; justify-content: space-between; color: #777; font-size: 11px; margin-top: 4px; }
+  .side-buy { color: #d4af37; }
+  .side-sell { color: #2962ff; }
+  .pl-pos { color: #4ade80; }
+  .pl-neg { color: #f87171; }
   #nav { height: 58px; background: #000; border-top: 1px solid #222; display: flex; }
   .navbtn { flex: 1; background: none; border: none; color: #666; font-size: 10px; }
   .navbtn.active { color: #d4af37; }
@@ -57,7 +68,17 @@
     </div>
   </div>
 
-  <div id="tab-positions" class="tab"><div class="panel" id="positions-panel">No positions loaded yet.</div></div>
+  <div id="tab-positions" class="tab">
+    <div class="panel">
+      <div id="pos-summary">
+        <div class="stat"><div class="label">Open</div><div class="value" id="sum-count">0</div></div>
+        <div class="stat"><div class="label">Volume</div><div class="value" id="sum-volume">0.00</div></div>
+        <div class="stat"><div class="label">P/L</div><div class="value" id="sum-pl">--</div></div>
+      </div>
+      <div id="positions-list">No positions loaded yet.</div>
+    </div>
+  </div>
+
   <div id="tab-account" class="tab">
     <div class="panel">
       <div class="banner" id="status-text">Checking...</div>
@@ -87,6 +108,8 @@ var accounts = { demo: null, live: null };
 var eurusdId = null;
 var priceTimer = null;
 var connectedType = null;
+var lastBid = null;
+var lastAsk = null;
 
 new TradingView.widget({
   autosize: true, symbol: "FX:EURUSD", interval: "60", theme: "dark", style: "1",
@@ -194,8 +217,10 @@ async function fullConnect(forceRetry) {
     if (!r) return;
     var p = await r.json();
     if (p.bid) {
-      document.getElementById('sell-px').textContent = (p.bid / 100000).toFixed(5);
-      document.getElementById('buy-px').textContent = (p.ask / 100000).toFixed(5);
+      lastBid = p.bid / 100000;
+      lastAsk = p.ask / 100000;
+      document.getElementById('sell-px').textContent = lastBid.toFixed(5);
+      document.getElementById('buy-px').textContent = lastAsk.toFixed(5);
     }
   }, 2000);
 
@@ -221,20 +246,80 @@ async function refreshBalance() {
   statusEl.textContent = 'Connected to FxPro ' + accountType + ' account.';
 }
 
+function normalizePrice(raw) {
+  if (raw === undefined || raw === null) return null;
+  var n = parseFloat(raw);
+  if (n > 1000) return n / 100000;
+  return n;
+}
+
 async function loadPositions() {
   var id = accounts[accountType];
-  var panel = document.getElementById('positions-panel');
-  if (!id) { panel.textContent = 'Connect first from Account tab.'; return; }
+  var listEl = document.getElementById('positions-list');
+  if (!id) { listEl.textContent = 'Connect first from Account tab.'; return; }
   var res = await fetch('/api/positions/' + id).catch(function() { return null; });
-  if (!res || !res.ok) { panel.textContent = 'Could not load positions.'; return; }
+  if (!res || !res.ok) { listEl.textContent = 'Could not load positions.'; return; }
   var data = await res.json();
   var positions = data.position || [];
+
+  document.getElementById('sum-count').textContent = positions.length;
+
+  var totalVolumeLots = 0;
+  var totalPL = 0;
+  var havePL = lastBid !== null && lastAsk !== null;
+
   if (positions.length === 0) {
-    panel.textContent = 'No open positions.';
+    listEl.innerHTML = '';
+    document.getElementById('sum-volume').textContent = '0.00';
+    document.getElementById('sum-pl').textContent = '--';
+    var empty = document.createElement('div');
+    empty.style.color = '#555';
+    empty.style.fontSize = '13px';
+    empty.style.padding = '20px 0';
+    empty.style.textAlign = 'center';
+    empty.textContent = 'No open positions.';
+    listEl.appendChild(empty);
+    return;
+  }
+
+  listEl.innerHTML = positions.map(function(p) {
+    var td = p.tradeData || {};
+    var side = td.tradeSide === 'BUY' ? 'BUY' : 'SELL';
+    var sideClass = side === 'BUY' ? 'side-buy' : 'side-sell';
+    var rawVolume = parseFloat(td.volume) || 0;
+    var lots = rawVolume / 10000000;
+    totalVolumeLots += lots;
+
+    var entryPrice = normalizePrice(p.price);
+    var plText = '--';
+    var plClass = '';
+
+    if (havePL && entryPrice !== null && lots > 0) {
+      var units = lots * 100000;
+      var pl;
+      if (side === 'BUY') {
+        pl = (lastBid - entryPrice) * units;
+      } else {
+        pl = (entryPrice - lastAsk) * units;
+      }
+      totalPL += pl;
+      plClass = pl >= 0 ? 'pl-pos' : 'pl-neg';
+      plText = (pl >= 0 ? '+' : '') + pl.toFixed(2) + ' USD';
+    }
+
+    return '<div class="pos-row">' +
+      '<div class="top"><span class="' + sideClass + '">' + side + ' EURUSD</span><span class="' + plClass + '">' + plText + '</span></div>' +
+      '<div class="bottom"><span>ID ' + p.positionId + ' &middot; ' + lots.toFixed(2) + ' lots</span>' +
+      (entryPrice !== null ? '<span>Entry ' + entryPrice.toFixed(5) + '</span>' : '<span></span>') +
+      '</div></div>';
+  }).join('');
+
+  document.getElementById('sum-volume').textContent = totalVolumeLots.toFixed(2) + ' lots';
+  if (havePL) {
+    var plSumClass = totalPL >= 0 ? 'pl-pos' : 'pl-neg';
+    document.getElementById('sum-pl').innerHTML = '<span class="' + plSumClass + '">' + (totalPL >= 0 ? '+' : '') + totalPL.toFixed(2) + '</span>';
   } else {
-    panel.innerHTML = positions.map(function(p) {
-      return '<div class="row"><span>' + (p.tradeData ? p.tradeData.tradeSide : '') + ' EURUSD</span><span>ID ' + p.positionId + '</span></div>';
-    }).join('');
+    document.getElementById('sum-pl').textContent = '--';
   }
 }
 
@@ -282,9 +367,9 @@ async function doTrade(side) {
   if (!execution) {
     alert('Order sent, but no confirmation arrived in 6 seconds. Check Positions tab manually.');
   } else if (execution.error) {
-    alert('Order REJECTED by FxPro. Full details:\n\n' + JSON.stringify(execution, null, 2));
+    alert('Order REJECTED by FxPro: ' + (execution.description || JSON.stringify(execution)));
   } else {
-    alert('Order confirmed. Full details:\n\n' + JSON.stringify(execution, null, 2));
+    alert(side + ' order filled. Check Positions tab.');
   }
 
   document.getElementById('buy-btn').disabled = false;
