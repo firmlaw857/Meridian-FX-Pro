@@ -17,30 +17,7 @@ let accessToken = null;
 let connections = {};
 let latestPrices = {};
 let lastExecutions = {};
-
-function dumpAllFields(obj) {
-  if (obj == null) return { note: "object was null/undefined" };
-  if (typeof obj.toObject === "function") {
-    try { return obj.toObject(); } catch (e) {}
-  }
-  if (typeof obj.toJSON === "function") {
-    try { return obj.toJSON(); } catch (e) {}
-  }
-  const result = {};
-  let current = obj;
-  while (current && current !== Object.prototype) {
-    Object.getOwnPropertyNames(current).forEach(k => {
-      if (result[k] !== undefined) return;
-      let val;
-      try { val = obj[k]; } catch (e) { val = "(error reading)"; }
-      if (typeof val === "function") return;
-      result[k] = val === undefined ? "(undefined)" : val;
-    });
-    current = Object.getPrototypeOf(current);
-  }
-  result.__constructorName = obj.constructor ? obj.constructor.name : "unknown";
-  return result;
-}
+let symbolIdByAccount = {};
 
 app.get("/login", (req, res) => {
   const url = `https://id.ctrader.com/my/settings/openapi/grantingaccess/?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=trading`;
@@ -82,6 +59,20 @@ app.get("/api/accounts", async (req, res) => {
   }
 });
 
+async function subscribeSpots(connection, accountId) {
+  const symbolsData = await connection.sendCommand("ProtoOASymbolsListReq", { ctidTraderAccountId: accountId });
+  const list = symbolsData.symbol || symbolsData.symbols || [];
+  const eurusd = list.find(s => s.symbolName === "EURUSD");
+  if (!eurusd) {
+    console.log("EURUSD not found for account", accountId);
+    return null;
+  }
+  symbolIdByAccount[accountId] = eurusd.symbolId;
+  await connection.sendCommand("ProtoOASubscribeSpotsReq", { ctidTraderAccountId: accountId, symbolId: [eurusd.symbolId] });
+  console.log("Subscribed to EURUSD spots for account", accountId, "symbolId", eurusd.symbolId);
+  return eurusd.symbolId;
+}
+
 app.get("/api/connect/:accountId", async (req, res) => {
   const accountId = req.params.accountId;
   const isLive = req.query.live === "true";
@@ -95,35 +86,39 @@ app.get("/api/connect/:accountId", async (req, res) => {
     setInterval(() => connection.sendHeartbeat(), 25000);
 
     connection.on("ProtoOASpotEvent", (event) => {
+      console.log("Spot tick for", accountId, "bid:", event.bid, "ask:", event.ask);
       latestPrices[accountId] = { bid: event.bid, ask: event.ask };
     });
     connection.on("ProtoOAExecutionEvent", (event) => {
-      const dump = dumpAllFields(event);
-      console.log("EXECUTION EVENT:", JSON.stringify(dump));
-      lastExecutions[accountId] = dump;
+      lastExecutions[accountId] = event;
     });
     connection.on("ProtoOAOrderErrorEvent", (event) => {
-      const dump = dumpAllFields(event);
-      dump.error = true;
-      console.log("ORDER ERROR EVENT:", JSON.stringify(dump));
-      lastExecutions[accountId] = dump;
+      lastExecutions[accountId] = { error: true, description: event.description || event.errorCode };
     });
 
-    const symbolsData = await connection.sendCommand("ProtoOASymbolsListReq", { ctidTraderAccountId: accountId });
-    const list = symbolsData.symbol || symbolsData.symbols || [];
-    const eurusd = list.find(s => s.symbolName === "EURUSD");
-    if (eurusd) {
-      await connection.sendCommand("ProtoOASubscribeSpotsReq", { ctidTraderAccountId: accountId, symbolId: [eurusd.symbolId] });
-    }
+    const eurusdSymbolId = await subscribeSpots(connection, accountId);
 
-    res.json({ status: "connected", accountId, eurusdSymbolId: eurusd ? eurusd.symbolId : null });
+    res.json({ status: "connected", accountId, eurusdSymbolId });
   } catch (err) {
     res.status(500).json({ error: err.message || String(err) });
   }
 });
 
-app.get("/api/price/:accountId", (req, res) => {
-  res.json(latestPrices[req.params.accountId] || {});
+app.get("/api/price/:accountId", async (req, res) => {
+  const accountId = req.params.accountId;
+  const cached = latestPrices[accountId];
+  if (cached) return res.json(cached);
+
+  const connection = connections[accountId];
+  if (connection) {
+    try {
+      console.log("No cached price for", accountId, "- attempting resubscribe");
+      await subscribeSpots(connection, accountId);
+    } catch (err) {
+      console.log("Resubscribe attempt failed:", err.message || err);
+    }
+  }
+  res.json(latestPrices[accountId] || {});
 });
 
 app.get("/api/last-execution/:accountId", (req, res) => {
@@ -161,7 +156,7 @@ app.post("/api/trade", async (req, res) => {
     const order = await connection.sendCommand("ProtoOANewOrderReq", {
       ctidTraderAccountId: accountId, symbolId, orderType: "MARKET", tradeSide: side, volume: volume * 10000000,
     });
-    res.json({ sent: true, ackResponse: dumpAllFields(order) });
+    res.json({ sent: true, ackResponse: order });
   } catch (err) {
     res.status(500).json({ error: err.message || String(err) });
   }
