@@ -18,14 +18,16 @@
   #main { flex: 1; overflow: hidden; position: relative; }
   .tab { display: none; height: 100%; }
   .tab.active { display: flex; flex-direction: column; }
-  #chart-box { flex: 1; }
+  #chart-box, #lwchart-box { flex: 1; position: relative; }
   #tradingview_chart { height: 100%; }
+  #lwchart-container { height: 100%; width: 100%; }
+  #lwchart-legend { position: absolute; top: 8px; left: 8px; color: #d4af37; font-size: 12px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; }
   #trade-bar { height: 64px; background: #0a0a0a; display: flex; align-items: center; padding: 0 10px; gap: 8px; }
   .trade-btn { flex: 1; height: 44px; border: none; border-radius: 6px; font-weight: 700; }
   .trade-btn:disabled { opacity: 0.5; }
-  #sell-btn { background: #2962ff; color: #fff; }
-  #buy-btn { background: #d4af37; color: #000; }
-  #vol { width: 60px; height: 44px; text-align: center; background: #111; color: #fff; border: 1px solid #333; }
+  #sell-btn, #sell-btn2 { background: #2962ff; color: #fff; }
+  #buy-btn, #buy-btn2 { background: #d4af37; color: #000; }
+  .vol-input { width: 60px; height: 44px; text-align: center; background: #111; color: #fff; border: 1px solid #333; }
   .panel { padding: 16px; color: #fff; overflow-y: auto; height: 100%; }
   .banner { margin-bottom: 14px; padding: 12px; background: #14110a; border: 1px solid #3a2f14; border-radius: 8px; color: #d4af37; font-size: 13px; }
   .banner.ok { background: #0a1410; border-color: #14392a; color: #4ade80; }
@@ -44,7 +46,7 @@
   .pl-pos { color: #4ade80; }
   .pl-neg { color: #f87171; }
   #nav { height: 58px; background: #000; border-top: 1px solid #222; display: flex; }
-  .navbtn { flex: 1; background: none; border: none; color: #666; font-size: 10px; }
+  .navbtn { flex: 1; background: none; border: none; color: #666; font-size: 9px; }
   .navbtn.active { color: #d4af37; }
 </style>
 </head>
@@ -63,8 +65,20 @@
     <div id="chart-box"><div id="tradingview_chart"></div></div>
     <div id="trade-bar">
       <button class="trade-btn" id="sell-btn" onclick="doTrade('SELL')">SELL <span id="sell-px"></span></button>
-      <input id="vol" type="number" value="0.01" step="0.01">
+      <input id="vol" class="vol-input" type="number" value="0.01" step="0.01">
       <button class="trade-btn" id="buy-btn" onclick="doTrade('BUY')">BUY <span id="buy-px"></span></button>
+    </div>
+  </div>
+
+  <div id="tab-lwchart" class="tab">
+    <div id="lwchart-box">
+      <div id="lwchart-container"></div>
+      <div id="lwchart-legend">EURUSD --</div>
+    </div>
+    <div id="trade-bar">
+      <button class="trade-btn" id="sell-btn2" onclick="doTrade('SELL')">SELL <span id="sell-px2"></span></button>
+      <input id="vol2" class="vol-input" type="number" value="0.01" step="0.01">
+      <button class="trade-btn" id="buy-btn2" onclick="doTrade('BUY')">BUY <span id="buy-px2"></span></button>
     </div>
   </div>
 
@@ -93,11 +107,13 @@
 
 <div id="nav">
   <button class="navbtn active" onclick="showTab('chart')">CHART</button>
+  <button class="navbtn" onclick="showTab('lwchart')">TRADE VIEW</button>
   <button class="navbtn" onclick="showTab('positions')">POSITIONS</button>
   <button class="navbtn" onclick="showTab('account')">ACCOUNT</button>
 </div>
 
 <script src="https://s3.tradingview.com/tv.js"></script>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <script>
 window.onerror = function(msg, url, line, col) {
   alert('JS ERROR: ' + msg + ' (line ' + line + ')');
@@ -111,6 +127,10 @@ var connectedType = null;
 var lastBid = null;
 var lastAsk = null;
 var currentTab = 'chart';
+
+var lwChart = null;
+var lwSeries = null;
+var lwPriceLines = [];
 
 new TradingView.widget({
   autosize: true, symbol: "FX:EURUSD", interval: "60", theme: "dark", style: "1",
@@ -126,6 +146,50 @@ new TradingView.widget({
   }
 });
 
+function initLwChart() {
+  if (lwChart) return;
+  var container = document.getElementById('lwchart-container');
+  lwChart = LightweightCharts.createChart(container, {
+    width: container.clientWidth,
+    height: container.clientHeight,
+    layout: { background: { color: '#000000' }, textColor: '#d4af37' },
+    grid: { vertLines: { color: '#111111' }, horzLines: { color: '#111111' } },
+    timeScale: { timeVisible: true, secondsVisible: true }
+  });
+  lwSeries = lwChart.addLineSeries({ color: '#d4af37', lineWidth: 2 });
+  window.addEventListener('resize', function() {
+    if (lwChart) lwChart.resize(container.clientWidth, container.clientHeight);
+  });
+}
+
+function pushLwPoint(price) {
+  if (!lwSeries) return;
+  var time = Math.floor(Date.now() / 1000);
+  lwSeries.update({ time: time, value: price });
+  document.getElementById('lwchart-legend').textContent = 'EURUSD ' + price.toFixed(5);
+}
+
+function updateLwPriceLines(positions) {
+  if (!lwSeries) return;
+  lwPriceLines.forEach(function(pl) { lwSeries.removePriceLine(pl); });
+  lwPriceLines = [];
+  positions.forEach(function(p) {
+    var td = p.tradeData || {};
+    var side = td.tradeSide === 'BUY' ? 'BUY' : 'SELL';
+    var entryPrice = normalizePrice(p.price);
+    if (entryPrice === null) return;
+    var line = lwSeries.createPriceLine({
+      price: entryPrice,
+      color: side === 'BUY' ? '#d4af37' : '#2962ff',
+      lineWidth: 1,
+      lineStyle: LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible: true,
+      title: side + ' ' + (parseFloat(td.volume || 0) / 10000000).toFixed(2)
+    });
+    lwPriceLines.push(line);
+  });
+}
+
 function showTab(name) {
   currentTab = name;
   document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
@@ -140,6 +204,19 @@ function showTab(name) {
     }
   }
   if (name === 'positions') loadPositions();
+  if (name === 'lwchart') {
+    initLwChart();
+    refreshLwPositionLines();
+  }
+}
+
+async function refreshLwPositionLines() {
+  var id = accounts[accountType];
+  if (!id || !lwSeries) return;
+  var res = await fetch('/api/positions/' + id).catch(function() { return null; });
+  if (!res || !res.ok) return;
+  var data = await res.json();
+  updateLwPriceLines(data.position || []);
 }
 
 function setAccountType(type) {
@@ -223,6 +300,10 @@ async function fullConnect(forceRetry) {
       lastAsk = p.ask / 100000;
       document.getElementById('sell-px').textContent = lastBid.toFixed(5);
       document.getElementById('buy-px').textContent = lastAsk.toFixed(5);
+      document.getElementById('sell-px2').textContent = lastBid.toFixed(5);
+      document.getElementById('buy-px2').textContent = lastAsk.toFixed(5);
+      var mid = (lastBid + lastAsk) / 2;
+      pushLwPoint(mid);
       if (currentTab === 'positions') loadPositions();
     }
   }, 2000);
@@ -264,6 +345,8 @@ async function loadPositions() {
   if (!res || !res.ok) { listEl.textContent = 'Could not load positions.'; return; }
   var data = await res.json();
   var positions = data.position || [];
+
+  updateLwPriceLines(positions);
 
   document.getElementById('sum-count').textContent = positions.length;
 
@@ -333,10 +416,13 @@ async function doTrade(side) {
   if (accountType === 'live') {
     if (!confirm('LIVE ACCOUNT - real money. Place ' + side + ' order?')) return;
   }
-  var volume = parseFloat(document.getElementById('vol').value) || 0.01;
+  var volEl = currentTab === 'lwchart' ? document.getElementById('vol2') : document.getElementById('vol');
+  var volume = parseFloat(volEl.value) || 0.01;
 
   document.getElementById('buy-btn').disabled = true;
   document.getElementById('sell-btn').disabled = true;
+  document.getElementById('buy-btn2').disabled = true;
+  document.getElementById('sell-btn2').disabled = true;
 
   var res = await fetch('/api/trade', {
     method: 'POST',
@@ -344,16 +430,18 @@ async function doTrade(side) {
     body: JSON.stringify({ accountId: id, symbolId: eurusdId, side: side, volume: volume })
   }).catch(function(e) { alert('Network error: ' + e.message); return null; });
 
-  if (!res) {
+  var reEnable = function() {
     document.getElementById('buy-btn').disabled = false;
     document.getElementById('sell-btn').disabled = false;
-    return;
-  }
+    document.getElementById('buy-btn2').disabled = false;
+    document.getElementById('sell-btn2').disabled = false;
+  };
+
+  if (!res) { reEnable(); return; }
   var data = await res.json();
   if (!res.ok || data.error) {
     alert('Trade failed: ' + (data.error || 'unknown error'));
-    document.getElementById('buy-btn').disabled = false;
-    document.getElementById('sell-btn').disabled = false;
+    reEnable();
     return;
   }
 
@@ -372,11 +460,10 @@ async function doTrade(side) {
   } else if (execution.error) {
     alert('Order REJECTED by FxPro: ' + (execution.description || JSON.stringify(execution)));
   } else {
-    alert(side + ' order filled. Check Positions tab.');
+    alert(side + ' order filled. Entry/SL/TP line added to Trade View chart.');
   }
 
-  document.getElementById('buy-btn').disabled = false;
-  document.getElementById('sell-btn').disabled = false;
+  reEnable();
   loadPositions();
 }
 
