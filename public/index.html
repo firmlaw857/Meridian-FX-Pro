@@ -21,7 +21,7 @@
   #chart-box, #lwchart-box { flex: 1; position: relative; }
   #tradingview_chart { height: 100%; }
   #lwchart-container { height: 100%; width: 100%; }
-  #lwchart-legend { position: absolute; top: 8px; left: 8px; color: #d4af37; font-size: 12px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; }
+  #lwchart-legend { position: absolute; top: 8px; left: 8px; color: #d4af37; font-size: 12px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; z-index: 5; }
   #trade-bar { height: 64px; background: #0a0a0a; display: flex; align-items: center; padding: 0 10px; gap: 8px; }
   .trade-btn { flex: 1; height: 44px; border: none; border-radius: 6px; font-weight: 700; }
   .trade-btn:disabled { opacity: 0.5; }
@@ -147,8 +147,11 @@ new TradingView.widget({
 });
 
 function initLwChart() {
-  if (lwChart) return;
   var container = document.getElementById('lwchart-container');
+  if (lwChart) {
+    lwChart.resize(container.clientWidth, container.clientHeight);
+    return;
+  }
   lwChart = LightweightCharts.createChart(container, {
     width: container.clientWidth,
     height: container.clientHeight,
@@ -205,8 +208,10 @@ function showTab(name) {
   }
   if (name === 'positions') loadPositions();
   if (name === 'lwchart') {
-    initLwChart();
-    refreshLwPositionLines();
+    setTimeout(function() {
+      initLwChart();
+      refreshLwPositionLines();
+    }, 100);
   }
 }
 
@@ -460,7 +465,7 @@ async function doTrade(side) {
   } else if (execution.error) {
     alert('Order REJECTED by FxPro: ' + (execution.description || JSON.stringify(execution)));
   } else {
-    alert(side + ' order filled. Entry/SL/TP line added to Trade View chart.');
+    alert(side + ' order filled. Entry line added to Trade View chart.');
   }
 
   reEnable();
