@@ -17,7 +17,8 @@ let accessToken = null;
 let connections = {};
 let latestPrices = {};
 let lastExecutions = {};
-let symbolIdByAccount = {};
+let symbolListCache = {};
+let activeSymbolByAccount = {};
 
 app.get("/login", (req, res) => {
   const url = `https://id.ctrader.com/my/settings/openapi/grantingaccess/?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=trading`;
@@ -59,18 +60,26 @@ app.get("/api/accounts", async (req, res) => {
   }
 });
 
-async function subscribeSpots(connection, accountId) {
+async function fetchAndCacheSymbols(connection, accountId) {
   const symbolsData = await connection.sendCommand("ProtoOASymbolsListReq", { ctidTraderAccountId: accountId });
   const list = symbolsData.symbol || symbolsData.symbols || [];
-  const eurusd = list.find(s => s.symbolName === "EURUSD");
-  if (!eurusd) {
-    console.log("EURUSD not found for account", accountId);
-    return null;
+  symbolListCache[accountId] = list.map(s => ({ symbolId: s.symbolId, symbolName: s.symbolName }));
+  return symbolListCache[accountId];
+}
+
+async function subscribeSymbol(connection, accountId, symbolId) {
+  const prevSymbolId = activeSymbolByAccount[accountId];
+  if (prevSymbolId && prevSymbolId !== symbolId) {
+    try {
+      await connection.sendCommand("ProtoOAUnsubscribeSpotsReq", { ctidTraderAccountId: accountId, symbolId: [prevSymbolId] });
+    } catch (e) {
+      console.log("Unsubscribe old symbol failed:", e.message || e);
+    }
   }
-  symbolIdByAccount[accountId] = eurusd.symbolId;
-  await connection.sendCommand("ProtoOASubscribeSpotsReq", { ctidTraderAccountId: accountId, symbolId: [eurusd.symbolId] });
-  console.log("Subscribed to EURUSD spots for account", accountId, "symbolId", eurusd.symbolId);
-  return eurusd.symbolId;
+  await connection.sendCommand("ProtoOASubscribeSpotsReq", { ctidTraderAccountId: accountId, symbolId: [symbolId] });
+  activeSymbolByAccount[accountId] = symbolId;
+  latestPrices[accountId] = {};
+  console.log("Subscribed account", accountId, "to symbolId", symbolId);
 }
 
 app.get("/api/connect/:accountId", async (req, res) => {
@@ -86,7 +95,6 @@ app.get("/api/connect/:accountId", async (req, res) => {
     setInterval(() => connection.sendHeartbeat(), 25000);
 
     connection.on("ProtoOASpotEvent", (event) => {
-      console.log("Spot tick for", accountId, "bid:", event.bid, "ask:", event.ask);
       latestPrices[accountId] = { bid: event.bid, ask: event.ask };
     });
     connection.on("ProtoOAExecutionEvent", (event) => {
@@ -96,9 +104,35 @@ app.get("/api/connect/:accountId", async (req, res) => {
       lastExecutions[accountId] = { error: true, description: event.description || event.errorCode };
     });
 
-    const eurusdSymbolId = await subscribeSpots(connection, accountId);
+    const symbols = await fetchAndCacheSymbols(connection, accountId);
+    const eurusd = symbols.find(s => s.symbolName === "EURUSD");
+    let activeSymbolId = null;
+    if (eurusd) {
+      await subscribeSymbol(connection, accountId, eurusd.symbolId);
+      activeSymbolId = eurusd.symbolId;
+    }
 
-    res.json({ status: "connected", accountId, eurusdSymbolId });
+    res.json({ status: "connected", accountId, activeSymbolId, activeSymbolName: eurusd ? eurusd.symbolName : null });
+  } catch (err) {
+    res.status(500).json({ error: err.message || String(err) });
+  }
+});
+
+app.get("/api/symbols/:accountId", (req, res) => {
+  const list = symbolListCache[req.params.accountId];
+  if (!list) return res.status(400).json({ error: "Symbols not loaded yet. Connect first." });
+  res.json({ symbols: list });
+});
+
+app.get("/api/switch-symbol/:accountId", async (req, res) => {
+  const accountId = req.params.accountId;
+  const symbolId = req.query.symbolId;
+  const connection = connections[accountId];
+  if (!connection) return res.status(400).json({ error: "Account not connected." });
+  if (!symbolId) return res.status(400).json({ error: "symbolId required." });
+  try {
+    await subscribeSymbol(connection, accountId, symbolId);
+    res.json({ status: "switched", symbolId });
   } catch (err) {
     res.status(500).json({ error: err.message || String(err) });
   }
@@ -107,13 +141,13 @@ app.get("/api/connect/:accountId", async (req, res) => {
 app.get("/api/price/:accountId", async (req, res) => {
   const accountId = req.params.accountId;
   const cached = latestPrices[accountId];
-  if (cached) return res.json(cached);
+  if (cached && cached.bid) return res.json(cached);
 
   const connection = connections[accountId];
-  if (connection) {
+  const symbolId = activeSymbolByAccount[accountId];
+  if (connection && symbolId) {
     try {
-      console.log("No cached price for", accountId, "- attempting resubscribe");
-      await subscribeSpots(connection, accountId);
+      await subscribeSymbol(connection, accountId, symbolId);
     } catch (err) {
       console.log("Resubscribe attempt failed:", err.message || err);
     }

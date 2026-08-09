@@ -21,7 +21,10 @@
   #chart-box, #lwchart-box { flex: 1; position: relative; }
   #tradingview_chart { height: 100%; }
   #lwchart-container { height: 100%; width: 100%; }
-  #lwchart-legend { position: absolute; top: 8px; left: 8px; color: #d4af37; font-size: 12px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; z-index: 5; }
+  #lwchart-toolbar { display: flex; gap: 6px; padding: 8px; background: #0a0a0a; border-bottom: 1px solid #222; align-items: center; }
+  #lwchart-toolbar select { background: #111; color: #fff; border: 1px solid #333; border-radius: 6px; padding: 6px 8px; font-size: 12px; flex: 1; }
+  #lwchart-toolbar select.tf { flex: none; width: 70px; }
+  #lwchart-legend { position: absolute; top: 56px; left: 8px; color: #d4af37; font-size: 12px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; z-index: 5; }
   #trade-bar { height: 64px; background: #0a0a0a; display: flex; align-items: center; padding: 0 10px; gap: 8px; }
   .trade-btn { flex: 1; height: 44px; border: none; border-radius: 6px; font-weight: 700; }
   .trade-btn:disabled { opacity: 0.5; }
@@ -71,9 +74,18 @@
   </div>
 
   <div id="tab-lwchart" class="tab">
+    <div id="lwchart-toolbar">
+      <select id="symbol-select" onchange="onSymbolChange()"><option>Connect first</option></select>
+      <select id="tf-select" class="tf" onchange="onTimeframeChange()">
+        <option value="60">1m</option>
+        <option value="300">5m</option>
+        <option value="900">15m</option>
+        <option value="3600">1h</option>
+      </select>
+    </div>
     <div id="lwchart-box">
       <div id="lwchart-container"></div>
-      <div id="lwchart-legend">EURUSD --</div>
+      <div id="lwchart-legend">-- --</div>
     </div>
     <div id="trade-bar">
       <button class="trade-btn" id="sell-btn2" onclick="doTrade('SELL')">SELL <span id="sell-px2"></span></button>
@@ -121,12 +133,15 @@ window.onerror = function(msg, url, line, col) {
 
 var accountType = 'demo';
 var accounts = { demo: null, live: null };
-var eurusdId = null;
+var activeSymbolId = null;
+var activeSymbolName = 'EURUSD';
 var priceTimer = null;
 var connectedType = null;
 var lastBid = null;
 var lastAsk = null;
 var currentTab = 'chart';
+var timeframeSeconds = 60;
+var symbolList = [];
 
 var lwChart = null;
 var lwSeries = null;
@@ -171,11 +186,28 @@ function initLwChart() {
   });
 }
 
+function resetCandles() {
+  currentCandle = null;
+  currentCandleTime = null;
+  if (lwSeries) lwSeries.setData([]);
+}
+
 function pushLwPoint(price) {
   if (!lwSeries) return;
-  var time = Math.floor(Date.now() / 1000);
-  lwSeries.update({ time: time, value: price });
-  document.getElementById('lwchart-legend').textContent = 'EURUSD ' + price.toFixed(5);
+  var now = Math.floor(Date.now() / 1000);
+  var bucketTime = now - (now % timeframeSeconds);
+
+  if (currentCandleTime !== bucketTime) {
+    currentCandleTime = bucketTime;
+    currentCandle = { time: bucketTime, open: price, high: price, low: price, close: price };
+  } else {
+    currentCandle.high = Math.max(currentCandle.high, price);
+    currentCandle.low = Math.min(currentCandle.low, price);
+    currentCandle.close = price;
+  }
+
+  lwSeries.update(currentCandle);
+  document.getElementById('lwchart-legend').textContent = activeSymbolName + ' ' + price.toFixed(5);
 }
 
 function updateLwPriceLines(positions) {
@@ -184,6 +216,7 @@ function updateLwPriceLines(positions) {
   lwPriceLines = [];
   positions.forEach(function(p) {
     var td = p.tradeData || {};
+    if (String(td.symbolId) !== String(activeSymbolId)) return;
     var side = td.tradeSide === 'BUY' ? 'BUY' : 'SELL';
     var entryPrice = normalizePrice(p.price);
     if (entryPrice === null) return;
@@ -197,6 +230,72 @@ function updateLwPriceLines(positions) {
     });
     lwPriceLines.push(line);
   });
+}
+
+async function loadSymbolList() {
+  var id = accounts[accountType];
+  if (!id) return;
+  var res = await fetch('/api/symbols/' + id).catch(function() { return null; });
+  if (!res || !res.ok) return;
+  var data = await res.json();
+  symbolList = data.symbols || [];
+  var select = document.getElementById('symbol-select');
+  select.innerHTML = '';
+  symbolList.forEach(function(s) {
+    var opt = document.createElement('option');
+    opt.value = s.symbolId;
+    opt.textContent = s.symbolName;
+    if (String(s.symbolId) === String(activeSymbolId)) opt.selected = true;
+    select.appendChild(opt);
+  });
+}
+
+async function onSymbolChange() {
+  var select = document.getElementById('symbol-select');
+  var newSymbolId = select.value;
+  var newSymbol = symbolList.find(function(s) { return String(s.symbolId) === String(newSymbolId); });
+  if (!newSymbol) return;
+  var id = accounts[accountType];
+  if (!id) return;
+
+  document.getElementById('lwchart-legend').textContent = 'Switching to ' + newSymbol.symbolName + '...';
+  var res = await fetch('/api/switch-symbol/' + id + '?symbolId=' + newSymbolId).catch(function() { return null; });
+  if (!res || !res.ok) {
+    alert('Failed to switch symbol.');
+    return;
+  }
+  activeSymbolId = newSymbolId;
+  activeSymbolName = newSymbol.symbolName;
+  resetCandles();
+
+  var tvSymbol = mapToTradingViewSymbol(activeSymbolName);
+  try {
+    if (window.tvWidget) window.tvWidget.setSymbol(tvSymbol, timeframeSecondsToInterval(timeframeSeconds));
+  } catch (e) {}
+}
+
+function mapToTradingViewSymbol(name) {
+  var cryptoNames = ['BTCUSD', 'ETHUSD', 'LTCUSD', 'XRPUSD', 'BCHUSD'];
+  if (cryptoNames.indexOf(name) !== -1) return 'BINANCE:' + name.replace('USD', '') + 'USDT';
+  if (name.indexOf('XAU') === 0 || name.indexOf('XAG') === 0) return 'OANDA:' + name;
+  return 'FX:' + name;
+}
+
+function timeframeSecondsToInterval(sec) {
+  if (sec === 60) return '1';
+  if (sec === 300) return '5';
+  if (sec === 900) return '15';
+  if (sec === 3600) return '60';
+  return '60';
+}
+
+function onTimeframeChange() {
+  var select = document.getElementById('tf-select');
+  timeframeSeconds = parseInt(select.value, 10);
+  resetCandles();
+  try {
+    if (window.tvWidget) window.tvWidget.setSymbol(mapToTradingViewSymbol(activeSymbolName), timeframeSecondsToInterval(timeframeSeconds));
+  } catch (e) {}
 }
 
 function showTab(name) {
@@ -216,6 +315,7 @@ function showTab(name) {
   if (name === 'lwchart') {
     setTimeout(function() {
       initLwChart();
+      loadSymbolList();
       refreshLwPositionLines();
     }, 100);
   }
@@ -298,8 +398,10 @@ async function fullConnect(forceRetry) {
     return;
   }
   var data = await res.json();
-  eurusdId = data.eurusdSymbolId;
+  activeSymbolId = data.activeSymbolId;
+  activeSymbolName = data.activeSymbolName || 'EURUSD';
   connectedType = accountType;
+  resetCandles();
 
   if (priceTimer) clearInterval(priceTimer);
   priceTimer = setInterval(async function() {
@@ -390,8 +492,9 @@ async function loadPositions() {
     var entryPrice = normalizePrice(p.price);
     var plText = '--';
     var plClass = '';
+    var isActiveSymbol = String(td.symbolId) === String(activeSymbolId);
 
-    if (havePL && entryPrice !== null && lots > 0) {
+    if (havePL && entryPrice !== null && lots > 0 && isActiveSymbol) {
       var units = lots * 100000;
       var pl;
       if (side === 'BUY') {
@@ -405,7 +508,7 @@ async function loadPositions() {
     }
 
     return '<div class="pos-row">' +
-      '<div class="top"><span class="' + sideClass + '">' + side + ' EURUSD</span><span class="' + plClass + '">' + plText + '</span></div>' +
+      '<div class="top"><span class="' + sideClass + '">' + side + ' Symbol ' + td.symbolId + '</span><span class="' + plClass + '">' + plText + '</span></div>' +
       '<div class="bottom"><span>ID ' + p.positionId + ' &middot; ' + lots.toFixed(2) + ' lots</span>' +
       (entryPrice !== null ? '<span>Entry ' + entryPrice.toFixed(5) + '</span>' : '<span></span>') +
       '</div></div>';
@@ -423,9 +526,9 @@ async function loadPositions() {
 async function doTrade(side) {
   var id = accounts[accountType];
   if (!id || connectedType !== accountType) { alert('Connect first from the Account tab.'); return; }
-  if (!eurusdId) { alert('Symbol not ready yet. Go to Account tab and wait for connection.'); return; }
+  if (!activeSymbolId) { alert('Symbol not ready yet. Go to Account tab and wait for connection.'); return; }
   if (accountType === 'live') {
-    if (!confirm('LIVE ACCOUNT - real money. Place ' + side + ' order?')) return;
+    if (!confirm('LIVE ACCOUNT - real money. Place ' + side + ' order on ' + activeSymbolName + '?')) return;
   }
   var volEl = currentTab === 'lwchart' ? document.getElementById('vol2') : document.getElementById('vol');
   var volume = parseFloat(volEl.value) || 0.01;
@@ -438,7 +541,7 @@ async function doTrade(side) {
   var res = await fetch('/api/trade', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accountId: id, symbolId: eurusdId, side: side, volume: volume })
+    body: JSON.stringify({ accountId: id, symbolId: activeSymbolId, side: side, volume: volume })
   }).catch(function(e) { alert('Network error: ' + e.message); return null; });
 
   var reEnable = function() {
@@ -471,7 +574,7 @@ async function doTrade(side) {
   } else if (execution.error) {
     alert('Order REJECTED by FxPro: ' + (execution.description || JSON.stringify(execution)));
   } else {
-    alert(side + ' order filled. Entry line added to Trade View chart.');
+    alert(side + ' order filled on ' + activeSymbolName + '.');
   }
 
   reEnable();
