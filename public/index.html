@@ -131,6 +131,8 @@ var currentTab = 'chart';
 var lwChart = null;
 var lwSeries = null;
 var lwPriceLines = [];
+var currentCandle = null;
+var currentCandleTime = null;
 
 new TradingView.widget({
   autosize: true, symbol: "FX:EURUSD", interval: "60", theme: "dark", style: "1",
@@ -159,7 +161,11 @@ function initLwChart() {
     grid: { vertLines: { color: '#111111' }, horzLines: { color: '#111111' } },
     timeScale: { timeVisible: true, secondsVisible: true }
   });
-  lwSeries = lwChart.addLineSeries({ color: '#d4af37', lineWidth: 2 });
+  lwSeries = lwChart.addCandlestickSeries({
+    upColor: '#d4af37', downColor: '#2962ff',
+    borderUpColor: '#d4af37', borderDownColor: '#2962ff',
+    wickUpColor: '#d4af37', wickDownColor: '#2962ff'
+  });
   window.addEventListener('resize', function() {
     if (lwChart) lwChart.resize(container.clientWidth, container.clientHeight);
   });
