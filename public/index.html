@@ -192,6 +192,18 @@ function resetCandles() {
   if (lwSeries) lwSeries.setData([]);
 }
 
+async function loadHistoricalCandles() {
+  var id = accounts[accountType];
+  var res = await fetch("/api/trendbars/" + id + "?symbolId=" + activeSymbolId + "&period=" + timeframeSeconds).catch(function() { return null; });
+  var data = await res.json();
+  var candles = data.candles || [];
+  if (candles.length === 0) return;
+  lwSeries.setData(candles);
+  var last = candles[candles.length - 1];
+  currentCandle = last;
+  currentCandleTime = last.time;
+}
+
 function pushLwPoint(price) {
   if (!lwSeries) return;
   var now = Math.floor(Date.now() / 1000);

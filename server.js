@@ -138,6 +138,43 @@ app.get("/api/switch-symbol/:accountId", async (req, res) => {
   }
 });
 
+const PERIOD_MAP = { "60": "M1", "300": "M5", "900": "M15", "3600": "H1" };
+
+app.get("/api/trendbars/:accountId", async (req, res) => {
+  const accountId = req.params.accountId;
+  const symbolId = req.query.symbolId;
+  const periodSeconds = req.query.period || "60";
+  const connection = connections[accountId];
+  if (!connection) return res.status(400).json({ error: "Account not connected." });
+  if (!symbolId) return res.status(400).json({ error: "symbolId required." });
+
+  const period = PERIOD_MAP[periodSeconds] || "M1";
+  const toTs = Date.now();
+  const fromTs = toTs - (200 * parseInt(periodSeconds, 10) * 1000);
+
+  try {
+    const data = await connection.sendCommand("ProtoOAGetTrendbarsReq", {
+      ctidTraderAccountId: accountId,
+      symbolId: symbolId,
+      period: period,
+      fromTimestamp: fromTs,
+      toTimestamp: toTs,
+    });
+    const bars = data.trendbar || [];
+    const candles = bars.map(b => {
+      const low = parseFloat(b.low) / 100000;
+      const open = low + (parseFloat(b.deltaOpen || 0) / 100000);
+      const high = low + (parseFloat(b.deltaHigh || 0) / 100000);
+      const close = low + (parseFloat(b.deltaClose || 0) / 100000);
+      const time = parseInt(b.utcTimestampInMinutes, 10) * 60;
+      return { time, open, high, low, close };
+    }).sort((a, b) => a.time - b.time);
+    res.json({ candles });
+  } catch (err) {
+    res.status(500).json({ error: err.message || String(err) });
+  }
+});
+
 app.get("/api/price/:accountId", async (req, res) => {
   const accountId = req.params.accountId;
   const cached = latestPrices[accountId];
